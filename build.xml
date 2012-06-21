@@ -143,9 +143,11 @@
       <class location="${dest.jar}/ApacheJMeter_native.jar"/>
       <class location="${dest.jar}/ApacheJMeter_report.jar"/>
       <class location="${dest.jar}/ApacheJMeter_tcp.jar"/>
+      <class location="${dest.jar}/ApacheJMeter_web.jar"/>
       <class location="${dest.jar.jmeter}/ApacheJMeter.jar" />
       <sourcePath path="${src.jorphan}" />
       <sourcePath path="${src.tcp}" />
+      <sourcePath path="${src.web}" />
       <sourcePath path="${src.jms}" />
       <sourcePath path="${src.native}" />
       <sourcePath path="${src.report}" />
@@ -205,6 +207,7 @@
   <property name="src.jorphan" value="src/jorphan"/>
   <property name="src.ldap" value="src/protocol/ldap"/>
   <property name="src.tcp" value="src/protocol/tcp"/>
+  <property name="src.web" value="src/protocol/web"/>
   <property name="src.examples" value="src/examples"/>
   <property name="src.mail" value="src/protocol/mail"/>
   <property name="src.monitor.components" value="src/monitor/components"/>
@@ -232,6 +235,7 @@
     <pathelement location="${src.jorphan}"/>
     <pathelement location="${src.ldap}"/>
     <pathelement location="${src.tcp}"/>
+    <pathelement location="${src.web}"/>
     <pathelement location="${src.examples}"/>
     <pathelement location="${src.mail}"/>
     <pathelement location="${src.monitor.components}"/>
@@ -255,6 +259,7 @@
   <property name="build.ldap" value="build/protocol/ldap"/>
   <property name="build.mail" value="build/protocol/mail"/>
   <property name="build.tcp" value="build/protocol/tcp"/>
+  <property name="build.web" value="build/protocol/web"/>
   <property name="build.examples" value="build/examples"/>
   <property name="build.monitor.components" value="build/monitor/components"/>
   <property name="build.monitor.model" value="build/monitor/model"/>
@@ -388,6 +393,17 @@
     <include name="${lib.dir}/${xpp3.jar}"/>
     <include name="${lib.dir}/${xstream.jar}"/>
   	<include name="${lib.dir}/${xmlpull.jar}"/>
+    <include name="${lib.dir}/${cglib-nodep.jar}"/>
+    <include name="${lib.dir}/${commons-exec.jar}"/>
+    <include name="${lib.dir}/${guava.jar}"/>
+    <include name="${lib.dir}/${jna.jar}"/>
+    <include name="${lib.dir}/${jsr305.jar}"/>
+    <include name="${lib.dir}/${json.jar}"/>
+    <include name="${lib.dir}/${platform.jar}"/>
+    <include name="${lib.dir}/${selenium-api.jar}"/>
+    <include name="${lib.dir}/${selenium-support.jar}"/>
+    <include name="${lib.dir}/${selenium-firefox.jar}"/>
+    <include name="${lib.dir}/${selenium-remote.jar}"/>
   </patternset>
 
   <!--
@@ -450,6 +466,17 @@
     <pathelement location="${lib.dir}/${xpp3.jar}"/>
     <pathelement location="${lib.dir}/${xstream.jar}"/>
   	<pathelement location="${lib.dir}/${xmlpull.jar}"/>
+    <pathelement location="${lib.dir}/${cglib-nodep.jar}"/>
+    <pathelement location="${lib.dir}/${commons-exec.jar}"/>
+    <pathelement location="${lib.dir}/${guava.jar}"/>
+    <pathelement location="${lib.dir}/${jna.jar}"/>
+    <pathelement location="${lib.dir}/${jsr305.jar}"/>
+    <pathelement location="${lib.dir}/${json.jar}"/>
+    <pathelement location="${lib.dir}/${platform.jar}"/>
+    <pathelement location="${lib.dir}/${selenium-api.jar}"/>
+    <pathelement location="${lib.dir}/${selenium-support.jar}"/>
+    <pathelement location="${lib.dir}/${selenium-firefox.jar}"/>
+    <pathelement location="${lib.dir}/${selenium-remote.jar}"/>
     <!-- Generated jars -->
     <fileset dir="${lib.dir}" includes="jorphan.jar"/>
     <!-- API-only jars-->
@@ -609,6 +636,7 @@
         <pathelement location="${build.monitor.model}"/>
         <pathelement location="${build.report}"/>
         <pathelement location="${build.tcp}"/>
+        <pathelement location="${build.web}"/>
         <!-- Also include compiled jars to allow running tests without rebuilding source -->
         <fileset dir="${dest.jar}" includes="*.jar"/>
         <path refid="classpath"/>
@@ -727,7 +755,20 @@
     </javac>
   </target>
 
-  <target name="compile-protocols" depends="compile-http,compile-ftp,compile-jdbc,compile-java,compile-ldap,compile-mail,compile-tcp" description="Compile all protocol-specific components."/>
+  <target name="compile-web" depends="compile-jorphan,compile-core" description="Compile components specific to Web sampling.">
+    <mkdir dir="${build.web}"/>
+    <javac srcdir="${src.web}" destdir="${build.web}" source="${src.java.version}" optimize="${optimize}" debug="on" target="${target.java.version}"
+           includeAntRuntime="${includeAntRuntime}" deprecation="${deprecation}" encoding="${encoding}">
+      <include name="**/*.java"/>
+      <classpath>
+        <pathelement location="${build.jorphan}"/>
+        <pathelement location="${build.core}"/>
+        <path refid="classpath"/>
+      </classpath>
+    </javac>
+  </target>
+
+  <target name="compile-protocols" depends="compile-http,compile-ftp,compile-jdbc,compile-java,compile-ldap,compile-mail,compile-tcp,compile-web" description="Compile all protocol-specific components."/>
 
   <target name="compile-examples" depends="compile-jorphan,compile-core" description="Compile example components.">
     <mkdir dir="${build.examples}"/>
@@ -1070,6 +1111,16 @@ run JMeter unless all the JMeter jars are added.
         fullpath="META-INF/LICENSE" />
       <fileset dir="${build.tcp}" includes="**/*.class" />
       <fileset dir="${src.tcp}" includes="**/*.properties" />
+    </jar>
+
+    <!-- web -->
+    <jar jarfile="${dest.jar}/ApacheJMeter_web.jar" manifest="${build.dir}/MANIFEST_BIN.MF">
+      <zipfileset file="${resources.meta-inf}/default.notice"
+        fullpath="META-INF/NOTICE" />
+      <zipfileset file="${resources.meta-inf}/default.license"
+        fullpath="META-INF/LICENSE" />
+      <fileset dir="${build.web}" includes="**/*.class" />
+      <fileset dir="${src.web}" includes="**/*.properties" />
     </jar>
 
     <!-- monitor -->
@@ -2496,6 +2547,28 @@ run JMeter unless all the JMeter jars are added.
         <process_jarfile jarname="jms"/>
         <process_jarfile jarname="velocity"   dest.dir="${lib.doc}"/>
         <process_jarfile jarname="jcharts"/>
+        <process_jarfile jarname="cglib-nodep"/>
+        <process_jarfile jarname="commons-exec"/>
+        <process_jarfile jarname="guava"/>
+        <process_jarfile jarname="jna"/>
+        <process_jarfile jarname="jsr305"/>
+        <process_jarfile jarname="json"/>
+        <process_jarfile jarname="platform"/>
+        <process_jarfile jarname="selenium-api"/>
+        <process_jarfile jarname="selenium-support"/>
+        <process_jarfile jarname="selenium-firefox"/>
+        <process_jarfile jarname="selenium-remote"/>
+        <process_jarfile jarname="mockito-all" dest.dir="${lib.opt}"/>
+        <process_jarfile jarname="javassist" dest.dir="${lib.opt}"/>
+        <process_jarfile jarname="powermock-core" dest.dir="${lib.opt}"/>
+        <process_jarfile jarname="powermock-reflect" dest.dir="${lib.opt}"/>
+        <process_jarfile jarname="powermock-support" dest.dir="${lib.opt}"/>
+        <process_jarfile jarname="powermock-base" dest.dir="${lib.opt}"/>
+        <process_jarfile jarname="powermock-rule" dest.dir="${lib.opt}"/>
+        <process_jarfile jarname="powermock-xstream" dest.dir="${lib.opt}"/>
+        <process_jarfile jarname="powermock-mockito" dest.dir="${lib.opt}"/>
+        <process_jarfile jarname="powermock-junit4" dest.dir="${lib.opt}"/>
+        <process_jarfile jarname="powermock-common" dest.dir="${lib.opt}"/>
     </target>
 
     <target name="_process_doc_jars">
