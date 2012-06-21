@@ -68,14 +68,12 @@ public class WebSampler extends AbstractSampler implements ThreadListener {
         res.setResponseCodeOK();
 
         try {
-            initManager(mgr);
+            initManager(mgr, res);
             bsfEngine = mgr.loadScriptingEngine("javascript");
-            
+
             // utility importer
             bsfEngine.exec("script", 0, 0, SCRIPT_UTILITY);
-            res.sampleStart();
             Object outcome = bsfEngine.eval("script", 0, 0, getScript());
-            res.sampleEnd();
 
             // setup status and data useful for verification
             res.setResponseData(BrowserFactory.getInstance().getBrowser().getPageSource().getBytes());
@@ -94,20 +92,21 @@ public class WebSampler extends AbstractSampler implements ThreadListener {
         return res;
 	}
 
-	private void initManager(BSFManager mgr) throws BSFException {
+	private void initManager(BSFManager mgr, SampleResult res) throws BSFException {
 		final String scriptParameters = getParameters();
 		
         // Use actual class name for log
         mgr.declareBean("log", LOGGER, Logger.class); // $NON-NLS-1$
         mgr.declareBean("Label",getName(), String.class); // $NON-NLS-1$
         mgr.declareBean("Parameters", scriptParameters, String.class); // $NON-NLS-1$
-        String [] args=JOrphanUtils.split(scriptParameters, " ");//$NON-NLS-1$
+        String[] args = JOrphanUtils.split(scriptParameters, " ");//$NON-NLS-1$
         mgr.declareBean("args",args,args.getClass());//$NON-NLS-1$
 
         // web specific classes
-        mgr.declareBean("browser", BrowserFactory.getInstance().getBrowser(), WebDriver.class);
+        mgr.declareBean("Browser", BrowserFactory.getInstance().getBrowser(), WebDriver.class);
         // For use in debugging:
         mgr.declareBean("OUT", System.out, PrintStream.class); // $NON-NLS-1$
+        mgr.declareBean("SampleResult", res, res.getClass()); // $NON-NLS-1$
     }
 	
 	public String getScript() {
