@@ -2,6 +2,7 @@ package org.apache.jmeter.protocol.web.util;
 
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
@@ -16,9 +17,16 @@ public class BrowserFactory {
      */
     private static final ThreadLocal<WebDriver> BROWSERS = new ThreadLocal<WebDriver>();
 
-    private static final BrowserFactory INSTANCE = new BrowserFactory();
+    private static final ThreadLocal<DesiredCapabilities> CAPABILITIES = new ThreadLocal<DesiredCapabilities>() {
+        @Override
+        public DesiredCapabilities initialValue() {
+            return DesiredCapabilities.firefox();
+        }
+    };
 
-    private Proxy proxy;
+    private static final ThreadLocal<Proxy> PROXIES = new ThreadLocal<Proxy>();
+
+    private static final BrowserFactory INSTANCE = new BrowserFactory();
 
     public static BrowserFactory getInstance() {
         return INSTANCE;
@@ -34,21 +42,23 @@ public class BrowserFactory {
      */
     public WebDriver getBrowser() {
         if(BROWSERS.get() == null) {
-            WebDriver browser = null;
-            if(proxy != null) {
-                final DesiredCapabilities capabilities = DesiredCapabilities.firefox();
-                capabilities.setCapability(CapabilityType.PROXY, proxy);
-                browser = new FirefoxDriver(capabilities);
-            }
-            else {
-                browser = new FirefoxDriver();
-            }
-            BROWSERS.set(browser);
+            BROWSERS.set(createBrowser());
         }
 
         return BROWSERS.get();
     }
-    
+
+    private WebDriver createBrowser() {
+        DesiredCapabilities desiredCapabilities = CAPABILITIES.get();
+        desiredCapabilities.setCapability(CapabilityType.PROXY, getProxy());
+        if("chrome".equalsIgnoreCase(desiredCapabilities.getBrowserName())) {
+                return new ChromeDriver(desiredCapabilities);
+        }
+        else {
+                return new FirefoxDriver(desiredCapabilities);
+        }
+    }
+
     /**
      * Removes all cookies in the current browser used by the running thread.
      */
@@ -73,7 +83,7 @@ public class BrowserFactory {
      * @param proxy is the proxy to use when {#getBrowser} is invoked.
      */
     public void setProxy(Proxy proxy) {
-        this.proxy = proxy;
+        PROXIES.set(proxy);
     }
 
     /**
@@ -82,6 +92,15 @@ public class BrowserFactory {
      * @return the configured proxy.
      */
 	public Proxy getProxy() {
-		return proxy;
+		return PROXIES.get();
 	}
+
+    public void setBrowserType(BrowserType browserType) {
+        if (browserType == BrowserType.CHROME) {
+            CAPABILITIES.set(DesiredCapabilities.chrome());
+        }
+        else {
+            CAPABILITIES.set(DesiredCapabilities.firefox());
+        }
+    }
 }
