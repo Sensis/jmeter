@@ -38,8 +38,6 @@ public class BrowserFactory {
 
     private static final BrowserFactory INSTANCE = new BrowserFactory();
 
-    private static ChromeDriverService chromeService;
-
     public static BrowserFactory getInstance() {
         return INSTANCE;
     }
@@ -119,6 +117,15 @@ public class BrowserFactory {
         }
         else {
             CAPABILITIES.set(DesiredCapabilities.firefox());
+        }
+    }
+
+    public BrowserType getBrowserType() {
+        if("chrome".equalsIgnoreCase(CAPABILITIES.get().getBrowserName())) {
+            return BrowserType.CHROME;
+        }
+        else {
+            return BrowserType.FIREFOX;
         }
     }
 }
