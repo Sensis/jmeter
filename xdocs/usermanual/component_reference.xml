@@ -3688,6 +3688,10 @@ GUI that they can use while developing new JMeter components.</p>
   <description><p>TBC</p></description>
 </component>
 
+<component name="Web Browser Type" index="&sect-num;.4.20"  width="465" height="375" screenshot="ldap_defaults.png">
+  <description><p>TBC</p></description>
+</component>
+
 <a href="#">^</a>
 
 </section>
