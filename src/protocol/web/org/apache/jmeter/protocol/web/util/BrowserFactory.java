@@ -1,16 +1,26 @@
 package org.apache.jmeter.protocol.web.util;
 
+import org.apache.jorphan.logging.LoggingManager;
+import org.apache.log.Logger;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeDriverService;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
+import org.openqa.selenium.remote.RemoteWebDriver;
+
+import java.io.File;
+import java.io.IOException;
 
 /**
  * This is responsible for accessing (and unsetting) a WebDriver browser instance per thread.
  */
 public class BrowserFactory {
+    private static final Logger LOGGER = LoggingManager.getLoggerForClass();
+
     /**
      * Each thread will reference their WebDriver (browser) instance via this ThreadLocal instance.  This is
      * initialised in the {@see #threadStarted()} and quit & unset in {@see #threadFinished()}.
@@ -20,13 +30,15 @@ public class BrowserFactory {
     private static final ThreadLocal<DesiredCapabilities> CAPABILITIES = new ThreadLocal<DesiredCapabilities>() {
         @Override
         public DesiredCapabilities initialValue() {
-            return DesiredCapabilities.firefox();
+            return DesiredCapabilities.chrome();
         }
     };
 
     private static final ThreadLocal<Proxy> PROXIES = new ThreadLocal<Proxy>();
 
     private static final BrowserFactory INSTANCE = new BrowserFactory();
+
+    private static ChromeDriverService chromeService;
 
     public static BrowserFactory getInstance() {
         return INSTANCE;
@@ -50,13 +62,19 @@ public class BrowserFactory {
 
     private WebDriver createBrowser() {
         DesiredCapabilities desiredCapabilities = CAPABILITIES.get();
-        desiredCapabilities.setCapability(CapabilityType.PROXY, getProxy());
         if("chrome".equalsIgnoreCase(desiredCapabilities.getBrowserName())) {
-                return new ChromeDriver(desiredCapabilities);
+            ChromeOptions options = new ChromeOptions();
+            return new ChromeDriver(options);
         }
         else {
-                return new FirefoxDriver(desiredCapabilities);
+            desiredCapabilities.setCapability(CapabilityType.PROXY, getProxy());
+            return new FirefoxDriver(desiredCapabilities);
         }
+    }
+
+    private String asChromeOptionsArgument(Proxy proxy) {
+        LOGGER.info("proxy: "+proxy.getHttpProxy());
+        return "--proxy-server=http://"+proxy.getHttpProxy();
     }
 
     /**

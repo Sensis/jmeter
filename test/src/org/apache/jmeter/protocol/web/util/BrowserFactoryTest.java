@@ -1,6 +1,5 @@
 package org.apache.jmeter.protocol.web.util;
 
-import org.hamcrest.CoreMatchers;
 import org.junit.After;
 import org.junit.Before;
 import org.junit.Test;
@@ -11,6 +10,8 @@ import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
+import org.openqa.selenium.chrome.ChromeDriverService;
+import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
@@ -29,6 +30,7 @@ import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 import static org.powermock.api.mockito.PowerMockito.*;
 
 @RunWith(PowerMockRunner.class)
@@ -73,6 +75,7 @@ public class BrowserFactoryTest {
     @Before
     public void initFactory() {
         factory = BrowserFactory.getInstance();
+        factory.setBrowserType(BrowserType.FIREFOX);
         factory.setProxy(null);
     }
 
@@ -163,7 +166,7 @@ public class BrowserFactoryTest {
         FirefoxDriver firstBrowser = mock(FirefoxDriver.class);
         ChromeDriver secondBrowser = mock(ChromeDriver.class);
         whenNew(FirefoxDriver.class).withParameterTypes(Capabilities.class).withArguments(isA(DesiredCapabilities.class)).thenReturn(firstBrowser);
-        whenNew(ChromeDriver.class).withParameterTypes(Capabilities.class).withArguments(isA(DesiredCapabilities.class)).thenReturn(secondBrowser);
+        whenNew(ChromeDriver.class).withParameterTypes(ChromeOptions.class).withArguments(isA(ChromeOptions.class)).thenReturn(secondBrowser);
 
         Thread firstThread = new Thread(this.new BrowserCreator(BrowserType.FIREFOX));
         Thread secondThread = new Thread(this.new BrowserCreator(BrowserType.CHROME));
@@ -178,7 +181,7 @@ public class BrowserFactoryTest {
         assertThat(browsers.get(0), is(not(sameInstance(browsers.get(1)))));
 
         verifyNew(FirefoxDriver.class, Mockito.times(1)).withArguments(isA(DesiredCapabilities.class));
-        verifyNew(ChromeDriver.class, Mockito.times(1)).withArguments(isA(DesiredCapabilities.class));
+        verifyNew(ChromeDriver.class, Mockito.times(1)).withArguments(isA(ChromeOptions.class));
     }
 
     @Test
@@ -226,11 +229,11 @@ public class BrowserFactoryTest {
     @Test
     public void shouldReturnChromeBrowserWhenSpecified() throws Exception {
         ChromeDriver mockBrowser = mock(ChromeDriver.class);
-        whenNew(ChromeDriver.class).withParameterTypes(Capabilities.class).withArguments(isA(DesiredCapabilities.class)).thenReturn(mockBrowser);
+        whenNew(ChromeDriver.class).withParameterTypes(ChromeOptions.class).withArguments(isA(ChromeOptions.class)).thenReturn(mockBrowser);
 
         factory.setBrowserType(BrowserType.CHROME);
         assertThat(factory.getBrowser(), is(sameInstance((WebDriver)mockBrowser)));
 
-        verifyNew(ChromeDriver.class, Mockito.times(1)).withArguments(isA(DesiredCapabilities.class));
+        verifyNew(ChromeDriver.class, Mockito.times(1)).withArguments(isA(ChromeOptions.class));
     }
 }
