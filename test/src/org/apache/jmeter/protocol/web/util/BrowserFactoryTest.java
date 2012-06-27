@@ -9,6 +9,7 @@ import org.mockito.Mockito;
 import org.openqa.selenium.Capabilities;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.android.AndroidDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -235,5 +236,16 @@ public class BrowserFactoryTest {
         assertThat(factory.getBrowser(), is(sameInstance((WebDriver)mockBrowser)));
 
         verifyNew(ChromeDriver.class, Mockito.times(1)).withArguments(isA(ChromeOptions.class));
+    }
+
+    @Test
+    public void shouldReturnAndroidBrowserWhenSpecified() throws Exception {
+        AndroidDriver mockBrowser = mock(AndroidDriver.class);
+        whenNew(AndroidDriver.class).withNoArguments().thenReturn(mockBrowser);
+
+        factory.setBrowserType(BrowserType.ANDROID);
+        assertThat(factory.getBrowser(), is(sameInstance((WebDriver)mockBrowser)));
+
+        verifyNew(AndroidDriver.class, Mockito.times(1)).withNoArguments();
     }
 }

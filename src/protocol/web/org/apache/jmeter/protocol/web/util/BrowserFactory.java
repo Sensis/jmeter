@@ -4,6 +4,7 @@ import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
+import org.openqa.selenium.android.AndroidDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
@@ -27,14 +28,14 @@ public class BrowserFactory {
      */
     private static final ThreadLocal<WebDriver> BROWSERS = new ThreadLocal<WebDriver>();
 
-    private static final ThreadLocal<DesiredCapabilities> CAPABILITIES = new ThreadLocal<DesiredCapabilities>() {
+    private static final ThreadLocal<Proxy> PROXIES = new ThreadLocal<Proxy>();
+
+    private static final ThreadLocal<BrowserType> BROWSER_TYPES = new ThreadLocal<BrowserType>() {
         @Override
-        public DesiredCapabilities initialValue() {
-            return DesiredCapabilities.chrome();
+        public BrowserType initialValue() {
+            return BrowserType.CHROME;
         }
     };
-
-    private static final ThreadLocal<Proxy> PROXIES = new ThreadLocal<Proxy>();
 
     private static final BrowserFactory INSTANCE = new BrowserFactory();
 
@@ -59,12 +60,16 @@ public class BrowserFactory {
     }
 
     private WebDriver createBrowser() {
-        DesiredCapabilities desiredCapabilities = CAPABILITIES.get();
-        if("chrome".equalsIgnoreCase(desiredCapabilities.getBrowserName())) {
+        BrowserType browserType = BROWSER_TYPES.get();
+        if(BrowserType.CHROME == browserType) {
             ChromeOptions options = new ChromeOptions();
             return new ChromeDriver(options);
         }
+        else if(BrowserType.ANDROID == browserType) {
+            return new AndroidDriver();
+        }
         else {
+            DesiredCapabilities desiredCapabilities = DesiredCapabilities.firefox();
             desiredCapabilities.setCapability(CapabilityType.PROXY, getProxy());
             return new FirefoxDriver(desiredCapabilities);
         }
@@ -112,20 +117,10 @@ public class BrowserFactory {
 	}
 
     public void setBrowserType(BrowserType browserType) {
-        if (browserType == BrowserType.CHROME) {
-            CAPABILITIES.set(DesiredCapabilities.chrome());
-        }
-        else {
-            CAPABILITIES.set(DesiredCapabilities.firefox());
-        }
+        BROWSER_TYPES.set(browserType);
     }
 
     public BrowserType getBrowserType() {
-        if("chrome".equalsIgnoreCase(CAPABILITIES.get().getBrowserName())) {
-            return BrowserType.CHROME;
-        }
-        else {
-            return BrowserType.FIREFOX;
-        }
+        return BROWSER_TYPES.get();
     }
 }

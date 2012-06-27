@@ -10,6 +10,7 @@ public class WebBrowserTypeConfigBeanInfo extends BeanInfoSupport {
     private static final String BROWSER_TYPE_SETTINGS = "browserTypeSettings";
     static final String FIREFOX = BrowserType.FIREFOX.name();
     static final String CHROME = BrowserType.CHROME.name();
+    static final String ANDROID = BrowserType.ANDROID.name();
 
     public WebBrowserTypeConfigBeanInfo() {
         super(WebBrowserTypeConfig.class);
@@ -25,6 +26,6 @@ public class WebBrowserTypeConfigBeanInfo extends BeanInfoSupport {
         p.setValue(DEFAULT, FIREFOX);
         p.setValue(NOT_OTHER, Boolean.TRUE);
         p.setValue(NOT_EXPRESSION, Boolean.TRUE);
-        p.setValue(TAGS, new String[] {FIREFOX, CHROME});
+        p.setValue(TAGS, new String[] {FIREFOX, CHROME, ANDROID});
     }
 }
