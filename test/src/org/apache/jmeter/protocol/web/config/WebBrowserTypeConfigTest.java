@@ -48,7 +48,7 @@ public class WebBrowserTypeConfigTest {
 	@Test
 	public void shouldUseChromeWhenSpecified() throws Exception {
 		typeConfig.setType(WebBrowserTypeConfigBeanInfo.CHROME);
-		typeConfig.iterationStart(null);
+		typeConfig.testIterationStart(null);
 		
 		assertThat(BrowserFactory.getInstance().getBrowserType(), is(BrowserType.CHROME));
 	}
@@ -56,7 +56,7 @@ public class WebBrowserTypeConfigTest {
 	@Test
 	public void shouldUseFirefoxWhenSpecified() throws Exception {
         typeConfig.setType(WebBrowserTypeConfigBeanInfo.FIREFOX);
-        typeConfig.iterationStart(null);
+        typeConfig.testIterationStart(null);
 
         assertThat(BrowserFactory.getInstance().getBrowserType(), is(BrowserType.FIREFOX));
     }

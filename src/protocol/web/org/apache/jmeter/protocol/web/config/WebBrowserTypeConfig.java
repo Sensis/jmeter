@@ -6,9 +6,14 @@ import org.apache.jmeter.engine.event.LoopIterationListener;
 import org.apache.jmeter.protocol.web.util.BrowserFactory;
 import org.apache.jmeter.protocol.web.util.BrowserType;
 import org.apache.jmeter.testbeans.TestBean;
+import org.apache.jmeter.testelement.TestListener;
+import org.apache.jorphan.logging.LoggingManager;
+import org.apache.log.Logger;
 
-public class WebBrowserTypeConfig extends ConfigTestElement implements TestBean, LoopIterationListener {
-    private static final long serialVersionUID = -657902955849089888L;
+public class WebBrowserTypeConfig extends ConfigTestElement implements TestBean, TestListener {
+    private static final Logger LOGGER = LoggingManager.getLoggerForClass();
+
+    private static final long serialVersionUID = -1257902955849089888L;
 
     private static final String TYPE = "WebBrowserTypeConfig.type";
 
@@ -20,12 +25,36 @@ public class WebBrowserTypeConfig extends ConfigTestElement implements TestBean,
     }
 
     public void setType(String type) {
+        LOGGER.info("setType: "+type);
         setProperty(TYPE, type);
     }
 
+//    @Override
+//    public void iterationStart(LoopIterationEvent iterEvent) {
+//        LOGGER.info("Type: "+getType());
+//        BrowserFactory.getInstance().setBrowserType(BrowserType.valueOf(getType()));
+//    }
 
     @Override
-    public void iterationStart(LoopIterationEvent iterEvent) {
+    public void testStarted() {
+        BrowserFactory.getInstance().setBrowserType(BrowserType.valueOf(getType()));
+    }
+
+    @Override
+    public void testStarted(String host) {
+        testStarted();
+    }
+
+    @Override
+    public void testEnded() {
+    }
+
+    @Override
+    public void testEnded(String host) {
+    }
+
+    @Override
+    public void testIterationStart(LoopIterationEvent event) {
         BrowserFactory.getInstance().setBrowserType(BrowserType.valueOf(getType()));
     }
 }

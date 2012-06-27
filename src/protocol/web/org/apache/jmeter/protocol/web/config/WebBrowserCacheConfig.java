@@ -5,9 +5,13 @@ import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
 import org.apache.jmeter.protocol.web.util.BrowserFactory;
 import org.apache.jmeter.testbeans.TestBean;
+import org.apache.jorphan.logging.LoggingManager;
+import org.apache.log.Logger;
 
 public class WebBrowserCacheConfig extends ConfigTestElement implements TestBean, LoopIterationListener {
-	private static final long serialVersionUID = -6579029558490898888L;
+    private static final Logger LOGGER = LoggingManager.getLoggerForClass();
+
+    private static final long serialVersionUID = -6579029558490898888L;
 	
 	private static final String CACHE_SETTINGS = "WebBrowserCacheConfig.cacheSettings";
 	
@@ -24,6 +28,7 @@ public class WebBrowserCacheConfig extends ConfigTestElement implements TestBean
 
     @Override
     public void iterationStart(LoopIterationEvent iterEvent) {
+        LOGGER.info("Cache settings: "+getCacheSettings());
         if(WebBrowserCacheConfigBeanInfo.CLEAR_ALL.equals(getCacheSettings())) {
             BrowserFactory.getInstance().clearBrowser();
         } else if(WebBrowserCacheConfigBeanInfo.CLEAR_COOKIES.equals(getCacheSettings())) {
