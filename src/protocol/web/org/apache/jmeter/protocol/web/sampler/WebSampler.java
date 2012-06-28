@@ -1,8 +1,5 @@
 package org.apache.jmeter.protocol.web.sampler;
 
-import java.io.PrintStream;
-import java.util.Properties;
-
 import org.apache.bsf.BSFEngine;
 import org.apache.bsf.BSFException;
 import org.apache.bsf.BSFManager;
@@ -11,14 +8,12 @@ import org.apache.jmeter.samplers.AbstractSampler;
 import org.apache.jmeter.samplers.Entry;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.ThreadListener;
-import org.apache.jmeter.threads.JMeterContext;
-import org.apache.jmeter.threads.JMeterContextService;
-import org.apache.jmeter.threads.JMeterVariables;
-import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 import org.openqa.selenium.WebDriver;
+
+import java.io.PrintStream;
 
 
 /**
@@ -37,7 +32,7 @@ public class WebSampler extends AbstractSampler implements ThreadListener {
 	 * }
 	 * </pre>
 	 */
-	private static final String SCRIPT_UTILITY = "var websampler = JavaImporter(org.openqa.selenium, org.openqa.selenium.support.ui)";
+	private static final String SCRIPT_UTILITY = "var websampler = JavaImporter(org.openqa.selenium, org.openqa.selenium.support.ui, org.openqa.selenium.interactions.touch)";
 
     public static final String SCRIPT = "WebSampler.script";
 
