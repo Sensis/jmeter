@@ -29,12 +29,6 @@ public class WebBrowserTypeConfig extends ConfigTestElement implements TestBean,
         setProperty(TYPE, type);
     }
 
-//    @Override
-//    public void iterationStart(LoopIterationEvent iterEvent) {
-//        LOGGER.info("Type: "+getType());
-//        BrowserFactory.getInstance().setBrowserType(BrowserType.valueOf(getType()));
-//    }
-
     @Override
     public void testStarted() {
         BrowserFactory.getInstance().setBrowserType(BrowserType.valueOf(getType()));
@@ -55,6 +49,7 @@ public class WebBrowserTypeConfig extends ConfigTestElement implements TestBean,
 
     @Override
     public void testIterationStart(LoopIterationEvent event) {
+        LOGGER.info("Setting browser to: "+getType());
         BrowserFactory.getInstance().setBrowserType(BrowserType.valueOf(getType()));
     }
 }

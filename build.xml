@@ -1726,6 +1726,7 @@ run JMeter unless all the JMeter jars are added.
     <deployfile stem="ApacheJMeter_native"/>
     <deployfile stem="ApacheJMeter_report"/>
     <deployfile stem="ApacheJMeter_tcp"/>
+    <deployfile stem="ApacheJMeter_web"/>
   </target>
 
   <!--

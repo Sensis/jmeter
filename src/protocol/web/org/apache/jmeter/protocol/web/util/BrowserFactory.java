@@ -28,6 +28,7 @@ public class BrowserFactory {
      */
     private static final ThreadLocal<WebDriver> BROWSERS = new ThreadLocal<WebDriver>();
 
+    private static final ThreadLocal<ChromeDriverService> SERVICES = new ThreadLocal<ChromeDriverService>();
     private static final ThreadLocal<Proxy> PROXIES = new ThreadLocal<Proxy>();
 
     private static final ThreadLocal<BrowserType> BROWSER_TYPES = new ThreadLocal<BrowserType>() {
@@ -62,8 +63,10 @@ public class BrowserFactory {
     private WebDriver createBrowser() {
         BrowserType browserType = BROWSER_TYPES.get();
         if(BrowserType.CHROME == browserType) {
-            ChromeOptions options = new ChromeOptions();
-            return new ChromeDriver(options);
+            initialiseService();
+            DesiredCapabilities desiredCapabilities = DesiredCapabilities.chrome();
+            desiredCapabilities.setCapability(CapabilityType.PROXY, getProxy());
+            return new RemoteWebDriver(SERVICES.get().getUrl(), desiredCapabilities);
         }
         else if(BrowserType.ANDROID == browserType) {
             return new AndroidDriver();
@@ -75,9 +78,15 @@ public class BrowserFactory {
         }
     }
 
-    private String asChromeOptionsArgument(Proxy proxy) {
-        LOGGER.info("proxy: "+proxy.getHttpProxy());
-        return "--proxy-server=http://"+proxy.getHttpProxy();
+    private static void initialiseService() {
+        if(SERVICES.get() == null) {
+            SERVICES.set(new ChromeDriverService.Builder().usingChromeDriverExecutable(new File(System.getProperty("webdriver.chrome.driver"))).usingAnyFreePort().build());
+            try {
+                SERVICES.get().start();
+            } catch (IOException e) {
+                throw new RuntimeException("Failed to start chrome service", e);
+            }
+        }
     }
 
     /**

@@ -95,6 +95,7 @@ public class WebBrowserProxyConfig extends ConfigTestElement implements TestBean
 
 	@Override
 	public void testIterationStart(LoopIterationEvent event) {
+        testStarted();
 	}
 
 }
