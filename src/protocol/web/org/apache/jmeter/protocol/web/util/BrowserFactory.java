@@ -104,6 +104,11 @@ public class BrowserFactory {
             BROWSERS.get().quit();
             BROWSERS.remove();
         }
+
+        if(SERVICES.get() != null) {
+            SERVICES.get().stop();
+            SERVICES.set(null);
+        }
     }
 
     /**
