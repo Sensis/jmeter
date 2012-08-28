@@ -10,6 +10,7 @@ import org.powermock.core.classloader.annotations.PrepareForTest;
 import org.powermock.modules.junit4.PowerMockRunner;
 
 import static org.hamcrest.CoreMatchers.is;
+import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -30,6 +31,8 @@ public class WebSamplerTest {
         sampler.setScript("false");
         SampleResult sampleResult = sampler.sample(null);
         assertThat(sampleResult.isSuccessful(), is(false));
+        assertThat(sampleResult.isResponseCodeOK(), is(false));
+        assertThat(sampleResult.getResponseMessage(), not("OK"));
     }
 
     @Test
@@ -45,6 +48,8 @@ public class WebSamplerTest {
         sampler.setScript("true");
         SampleResult sampleResult = sampler.sample(null);
         assertThat(sampleResult.isSuccessful(), is(true));
+        assertThat(sampleResult.isResponseCodeOK(), is(true));
+        assertThat(sampleResult.getResponseMessage(), is("OK"));
     }
 
     @Test
@@ -60,5 +65,7 @@ public class WebSamplerTest {
         sampler.setScript("function() {}");
         SampleResult sampleResult = sampler.sample(null);
         assertThat(sampleResult.isSuccessful(), is(true));
+        assertThat(sampleResult.isResponseCodeOK(), is(true));
+        assertThat(sampleResult.getResponseMessage(), is("OK"));
     }
 }

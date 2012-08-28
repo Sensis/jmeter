@@ -75,9 +75,16 @@ public class WebSampler extends AbstractSampler implements ThreadListener {
             if(outcome instanceof Boolean) { // only set this if the return value is boolean
                 res.setSuccessful((Boolean) outcome);
             }
+
+            // fail the response if unsuccessful
+            if(!res.isSuccessful()) {
+                res.setResponseCode("500");
+                res.setResponseMessage("Failed to find/verify expected content on page");
+            }
+
         } catch (Exception ex) {
             res.setResponseMessage(ex.toString());
-            res.setResponseCode("000");
+            res.setResponseCode("500");
             if(ex.getMessage() != null) {
                 res.setResponseData(ex.getMessage().getBytes());
             }

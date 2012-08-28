@@ -49,7 +49,7 @@ public class WebBrowserCacheConfigTest {
 		when(BrowserFactory.getInstance()).thenReturn(mockBrowserFactory);
 		
 		cacheConfig.setCacheSettings(WebBrowserCacheConfigBeanInfo.CLEAR_ALL);
-		cacheConfig.iterationStart(null);
+		cacheConfig.testIterationStart(null);
 		
 		verify(mockBrowserFactory).clearBrowser();
 	}
@@ -61,7 +61,7 @@ public class WebBrowserCacheConfigTest {
 		when(BrowserFactory.getInstance()).thenReturn(mockBrowserFactory);
 		
 		cacheConfig.setCacheSettings(WebBrowserCacheConfigBeanInfo.CLEAR_COOKIES);
-		cacheConfig.iterationStart(null);
+		cacheConfig.testIterationStart(null);
 		
 		verify(mockBrowserFactory).clearBrowserCookies();
 	}
