@@ -14,4 +14,4 @@ Proposed  solution - JMeter with WebDriver
 ==========================================
 As mentioned we will use [JMeter](http://jmeter.apache.org) to simulate the load creation and [WebDriver](http://seleniumhq.org) to create and control the browser interaction(s) with the server.  To script the actions for the browser, we currently use Javascript (provided by [Rhino](http://www.mozilla.org/rhino/)).  
 
-See the [Getting Started](https://github.com/cplim/JMeter/wiki/Getting-Started) section to try out the spike.
+See the [Getting Started](https://github.com/Sensis/jmeter/wiki/Getting-Started) section to try out the spike.
