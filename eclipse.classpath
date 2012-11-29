@@ -39,8 +39,10 @@
 	<classpathentry kind="src" output="build/protocol/mail" path="src/protocol/mail"/>
     <classpathentry kind="src" output="build/protocol/native" path="src/protocol/native"/>
 	<classpathentry kind="src" output="build/protocol/tcp" path="src/protocol/tcp"/>
+	<classpathentry kind="src" output="build/protocol/web" path="src/protocol/web"/>
 	<classpathentry kind="src" output="build/reports" path="src/reports"/>
 	<classpathentry kind="src" output="build/test" path="test/src"/>
+	<!-- libs -->
     <classpathentry kind="lib" path="lib/activation-1.1.1.jar"/>
 	<classpathentry kind="lib" path="lib/avalon-framework-4.1.4.jar"/>
 	<classpathentry kind="lib" path="lib/bsf-2.4.0.jar"/>
@@ -82,6 +84,13 @@
     <classpathentry kind="lib" path="lib/xmlpull-1.1.3.1.jar"/>
 	<classpathentry kind="lib" path="lib/xpp3_min-1.1.4c.jar"/>
 	<classpathentry kind="lib" path="lib/xstream-1.4.2.jar"/>
+	<!-- selenium -->
+	<classpathentry kind="lib" path="lib/selenium-android-driver-2.26.0.jar"/>
+	<classpathentry kind="lib" path="lib/selenium-api-2.26.0.jar"/>
+	<classpathentry kind="lib" path="lib/selenium-chrome-driver-2.26.0.jar"/>
+	<classpathentry kind="lib" path="lib/selenium-firefox-driver-2.26.0.jar"/>
+	<classpathentry kind="lib" path="lib/selenium-remote-driver-2.26.0.jar"/>
+	<classpathentry kind="lib" path="lib/selenium-support-2.26.0.jar"/>
     <!-- Needed for build and test -->
     <classpathentry kind="lib" path="lib/api/bcmail-jdk15-1.45.jar"/>
     <classpathentry kind="lib" path="lib/api/bcprov-jdk15-1.45.jar"/>
