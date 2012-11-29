@@ -4,11 +4,6 @@ import org.apache.jmeter.protocol.web.util.BrowserFactory;
 import org.apache.jmeter.protocol.web.util.BrowserType;
 import org.junit.Before;
 import org.junit.Test;
-import org.junit.runner.RunWith;
-import org.powermock.api.mockito.PowerMockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
-
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -17,7 +12,6 @@ import java.io.ObjectOutputStream;
 
 import static org.hamcrest.CoreMatchers.is;
 import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.*;
 
 public class WebBrowserTypeConfigTest {
     private WebBrowserTypeConfig typeConfig;

@@ -11,7 +11,6 @@ import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.android.AndroidDriver;
 import org.openqa.selenium.chrome.ChromeDriver;
-import org.openqa.selenium.chrome.ChromeDriverService;
 import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.remote.CapabilityType;
@@ -26,7 +25,6 @@ import java.util.Vector;
 import static org.hamcrest.CoreMatchers.*;
 import static org.junit.Assert.assertThat;
 import static org.junit.matchers.JUnitMatchers.hasItem;
-import static org.mockito.Matchers.any;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Matchers.isA;
 import static org.mockito.Mockito.mock;
@@ -69,7 +67,7 @@ public class BrowserFactoryTest {
             BrowserFactoryTest.this.factory.setProxy(proxy);
             browsers.add(BrowserFactoryTest.this.factory.getBrowser());
         }
-    };
+    }
 
     private BrowserFactory factory;
 
