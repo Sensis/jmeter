@@ -54,7 +54,6 @@ import org.apache.jmeter.engine.ClientJMeterEngine;
 import org.apache.jmeter.engine.JMeterEngine;
 import org.apache.jmeter.engine.RemoteJMeterEngineImpl;
 import org.apache.jmeter.engine.StandardJMeterEngine;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.exceptions.IllegalUserActionException;
 import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.gui.MainFrame;
@@ -75,7 +74,7 @@ import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.save.SaveService;
 import org.apache.jmeter.services.FileServer;
 import org.apache.jmeter.testelement.TestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.util.BeanShellInterpreter;
 import org.apache.jmeter.util.BeanShellServer;
 import org.apache.jmeter.util.JMeterUtils;
@@ -84,6 +83,7 @@ import org.apache.jorphan.collections.SearchByClass;
 import org.apache.jorphan.gui.ComponentUtil;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.jorphan.reflect.ClassTools;
+import org.apache.jorphan.util.HeapDumper;
 import org.apache.jorphan.util.JMeterException;
 import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
@@ -228,7 +228,7 @@ public class JMeter implements JMeterPlugin {
         treeLis.setActionHandler(ActionRouter.getInstance());
         // NOTUSED: GuiPackage guiPack =
         GuiPackage.getInstance(treeLis, treeModel);
-        MainFrame main = new MainFrame(ActionRouter.getInstance(), treeModel, treeLis);
+        MainFrame main = new MainFrame(treeModel, treeLis);
         ComponentUtil.centerComponentInWindow(main, 80);
         main.setVisible(true);
         ActionRouter.getInstance().actionPerformed(new ActionEvent(main, 1, ActionNames.ADD_ALL));
@@ -302,6 +302,7 @@ public class JMeter implements JMeterPlugin {
             }
 
             Thread.setDefaultUncaughtExceptionHandler(new UncaughtExceptionHandler() {                
+                @Override
                 public void uncaughtException(Thread t, Throwable e) {
                     if (!(e instanceof ThreadDeath)) {
                         log.error("Uncaught exception: ", e);
@@ -392,11 +393,7 @@ public class JMeter implements JMeterPlugin {
             System.out.println("Incorrect Usage");
             System.out.println(CLUtil.describeOptions(options).toString());
         } catch (Throwable e) {
-            if (log != null){
-                log.fatalError("An error occurred: ",e);
-            } else {
-                e.printStackTrace();
-            }
+            log.fatalError("An error occurred: ",e);
             System.out.println("An error occurred: " + e.getMessage());
             System.exit(1); // TODO - could this be return?
         }
@@ -682,6 +679,7 @@ public class JMeter implements JMeterPlugin {
         if (sample_variables != null){
             remoteProps.put(SampleEvent.SAMPLE_VARIABLES, sample_variables);
         }
+        jmeterProps.put("jmeter.version", JMeterUtils.getJMeterVersion());
     }
 
     /*
@@ -916,18 +914,23 @@ public class JMeter implements JMeterPlugin {
      * If running a remote test, then after waiting a few seconds for listeners to finish files,
      * it calls ClientJMeterEngine.tidyRMI() to deal with the Naming Timer Thread.
      */
-    private static class ListenToTest implements TestListener, Runnable, Remoteable {
-        private AtomicInteger started = new AtomicInteger(0); // keep track of remote tests
+    private static class ListenToTest implements TestStateListener, Runnable, Remoteable {
+        private final AtomicInteger started = new AtomicInteger(0); // keep track of remote tests
 
         //NOT YET USED private JMeter _parent;
 
         private final List<JMeterEngine> engines;
 
-        public ListenToTest(JMeter parent, List<JMeterEngine> engines) {
-            //_parent = parent;
+        /**
+         * @param unused JMeter unused for now
+         * @param engines List<JMeterEngine>
+         */
+        public ListenToTest(JMeter unused, List<JMeterEngine> engines) {
+            //_parent = unused;
             this.engines=engines;
         }
 
+        @Override
         public void testEnded(String host) {
             long now=System.currentTimeMillis();
             log.info("Finished remote host: " + host + " ("+now+")");
@@ -937,6 +940,7 @@ public class JMeter implements JMeterPlugin {
             }
         }
 
+        @Override
         public void testEnded() {
             long now = System.currentTimeMillis();
             println("Tidying up ...    @ "+new Date(now)+" ("+now+")");
@@ -944,12 +948,14 @@ public class JMeter implements JMeterPlugin {
             checkForRemainingThreads();
         }
 
+        @Override
         public void testStarted(String host) {
             started.incrementAndGet();
             long now=System.currentTimeMillis();
             log.info("Started remote host:  " + host + " ("+now+")");
         }
 
+        @Override
         public void testStarted() {
             long now=System.currentTimeMillis();
             log.info(JMeterUtils.getResString("running_test")+" ("+now+")");//$NON-NLS-1$
@@ -962,6 +968,7 @@ public class JMeter implements JMeterPlugin {
          * been delivered. Should also improve performance of remote JMeter
          * testing.
          */
+        @Override
         public void run() {
             long now = System.currentTimeMillis();
             println("Tidying up remote @ "+new Date(now)+" ("+now+")");
@@ -978,13 +985,6 @@ public class JMeter implements JMeterPlugin {
             ClientJMeterEngine.tidyRMI(log);
             println("... end of run");
             checkForRemainingThreads();
-        }
-
-        /**
-         * @see TestListener#testIterationStart(LoopIterationEvent)
-         */
-        public void testIterationStart(LoopIterationEvent event) {
-            // ignored
         }
 
         /**
@@ -1038,6 +1038,7 @@ public class JMeter implements JMeterPlugin {
         { "org.apache.jmeter.assertions.gui.AbstractAssertionGui",   "org/apache/jmeter/images/question.gif"}     //$NON-NLS-1$ $NON-NLS-2$
     };
 
+    @Override
     public String[][] getIconMappings() {
         final String defaultIconProp = "org/apache/jmeter/images/icon.properties"; //$NON-NLS-1$
         String iconProp = JMeterUtils.getPropDefault("jmeter.icons", defaultIconProp);//$NON-NLS-1$
@@ -1068,6 +1069,7 @@ public class JMeter implements JMeterPlugin {
         return iconlist;
     }
 
+    @Override
     public String[][] getResourceBundles() {
         return new String[0][];
     }
@@ -1129,6 +1131,8 @@ public class JMeter implements JMeterPlugin {
                         for(JMeterEngine engine : engines) {
                             engine.stopTest(false);
                         }
+                    } else if (command.equals("HeapDump")) {
+                        HeapDumper.dumpHeap();
                     } else {
                         System.out.println("Command: "+command+" not recognised ");
                     }

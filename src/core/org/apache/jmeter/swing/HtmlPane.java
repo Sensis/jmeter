@@ -35,6 +35,7 @@ public class HtmlPane extends JTextPane {
 
     public HtmlPane() {
         this.addHyperlinkListener(new HyperlinkListener() {
+            @Override
             public void hyperlinkUpdate(HyperlinkEvent e) {
                 if (e.getEventType() == HyperlinkEvent.EventType.ACTIVATED) {
                     String ref = e.getURL().getRef();
@@ -45,10 +46,5 @@ public class HtmlPane extends JTextPane {
                 }
             }
         });
-    }
-
-    @Override
-    public void scrollToReference(String reference) {
-        super.scrollToReference(reference);
     }
 }

@@ -77,7 +77,7 @@ public class SampleResult implements Serializable {
      * @see #getDataType
      * @see #setDataType(java.lang.String)
      */
-    public final static String TEXT = "text"; // $NON-NLS-1$
+    public static final String TEXT = "text"; // $NON-NLS-1$
 
     /**
      * Data type value indicating that the response data is binary.
@@ -85,10 +85,10 @@ public class SampleResult implements Serializable {
      * @see #getDataType
      * @see #setDataType(java.lang.String)
      */
-    public final static String BINARY = "bin"; // $NON-NLS-1$
+    public static final String BINARY = "bin"; // $NON-NLS-1$
 
     /* empty arrays which can be returned instead of null */
-    private static final byte[] EMPTY_BA = new byte[0];
+    public static final byte[] EMPTY_BA = new byte[0];
 
     private static final SampleResult[] EMPTY_SR = new SampleResult[0];
 
@@ -174,6 +174,9 @@ public class SampleResult implements Serializable {
 
     /** time to first response */
     private long latency = 0;
+    
+    /** Should thread start next iteration ? */
+    private boolean startNextThreadLoop = false;
 
     /** Should thread terminate? */
     private boolean stopThread = false;
@@ -242,6 +245,11 @@ public class SampleResult implements Serializable {
     
     final long nanoThreadSleep;
     
+    /**
+     * Cache for responseData as string to avoid multiple computations
+     */
+    private volatile transient String responseDataAsString;
+    
     private long initOffset(){
         if (useNanoTime){
             return nanoThreadSleep > 0 ? NanoOffset.getNanoOffset() : System.currentTimeMillis() - sampleNsClockInMs();
@@ -295,6 +303,7 @@ public class SampleResult implements Serializable {
         requestHeaders = res.requestHeaders;//OK
         responseCode = res.responseCode;//OK
         responseData = res.responseData;//OK
+        responseDataAsString = null;
         responseHeaders = res.responseHeaders;//OK
         responseMessage = res.responseMessage;//OK
         // Don't copy this; it is per instance resultFileName = res.resultFileName;
@@ -305,6 +314,7 @@ public class SampleResult implements Serializable {
         stopTest = res.stopTest;
         stopTestNow = res.stopTestNow;
         stopThread = res.stopThread;
+        startNextThreadLoop = res.startNextThreadLoop;
         subResults = res.subResults; // TODO ??
         success = res.success;//OK
         threadName = res.threadName;//OK
@@ -514,7 +524,7 @@ public class SampleResult implements Serializable {
      */
     public String getSampleLabel(boolean includeGroup) {
         if (includeGroup) {
-            StringBuilder sb = new StringBuilder(threadName.substring(0,threadName.lastIndexOf(" "))); //$NON-NLS-1$
+            StringBuilder sb = new StringBuilder(threadName.substring(0,threadName.lastIndexOf(' '))); //$NON-NLS-1$
             return sb.append(":").append(label).toString(); //$NON-NLS-1$
         }
         return label;
@@ -572,11 +582,7 @@ public class SampleResult implements Serializable {
      * @param subResult
      */
     public void addRawSubResult(SampleResult subResult){
-        if (subResults == null) {
-            subResults = new ArrayList<SampleResult>();
-        }
-        subResults.add(subResult);
-        subResult.setParent(this);
+        storeSubResult(subResult);
     }
 
     /**
@@ -617,6 +623,7 @@ public class SampleResult implements Serializable {
      *            the new responseData value
      */
     public void setResponseData(byte[] response) {
+        responseDataAsString = null;
         responseData = response == null ? EMPTY_BA : response;
     }
 
@@ -631,6 +638,7 @@ public class SampleResult implements Serializable {
      */
     @Deprecated
     public void setResponseData(String response) {
+        responseDataAsString = null;
         try {
             responseData = response.getBytes(getDataEncodingWithDefault());
         } catch (UnsupportedEncodingException e) {
@@ -647,6 +655,7 @@ public class SampleResult implements Serializable {
      *
      */
     public void setResponseData(final String response, final String encoding) {
+        responseDataAsString = null;
         String encodeUsing = encoding != null? encoding : DEFAULT_CHARSET;
         try {
             responseData = response.getBytes(encodeUsing);
@@ -680,7 +689,10 @@ public class SampleResult implements Serializable {
      */
     public String getResponseDataAsString() {
         try {
-            return new String(responseData,getDataEncodingWithDefault());
+            if(responseDataAsString == null) {
+                responseDataAsString= new String(responseData,getDataEncodingWithDefault());
+            }
+            return responseDataAsString;
         } catch (UnsupportedEncodingException e) {
             log.warn("Using platform default as "+getDataEncodingWithDefault()+" caused "+e);
             return new String(responseData); // N.B. default charset is used deliberately here
@@ -760,6 +772,11 @@ public class SampleResult implements Serializable {
         "video/",       //$NON-NLS-1$
         };
 
+    // List of types that are known to be ascii, although they may appear to be binary
+    private static final String[] NON_BINARY_TYPES = {
+        "video/f4m",       //$NON-NLS-1$ (Flash Media Manifest)
+        };
+
     /*
      * Determine if content-type is known to be binary, i.e. not displayable as text.
      *
@@ -767,6 +784,11 @@ public class SampleResult implements Serializable {
      * @return true if content-type is of type binary.
      */
     private static boolean isBinaryType(String ct){
+        for (String entry : NON_BINARY_TYPES){
+            if (ct.startsWith(entry)){
+                return false;
+            }
+        }
         for (int i = 0; i < BINARY_TYPES.length; i++){
             if (ct.startsWith(BINARY_TYPES[i])){
                 return true;
@@ -1297,5 +1319,26 @@ public class SampleResult implements Serializable {
             }
         }
         
+    }
+
+    /**
+     * @return the startNextThreadLoop
+     */
+    public boolean isStartNextThreadLoop() {
+        return startNextThreadLoop;
+    }
+
+    /**
+     * @param startNextThreadLoop the startNextLoop to set
+     */
+    public void setStartNextThreadLoop(boolean startNextThreadLoop) {
+        this.startNextThreadLoop = startNextThreadLoop;
+    }
+
+    /**
+     * Clean up cached data
+     */
+    public void cleanAfterSample() {
+        this.responseDataAsString = null;
     }
 }

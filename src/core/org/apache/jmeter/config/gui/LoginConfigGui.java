@@ -40,10 +40,10 @@ public class LoginConfigGui extends AbstractConfigGui {
     private static final long serialVersionUID = 240L;
 
     /** Field allowing the user to enter a username. */
-    private JTextField username = new JTextField(15);
+    private final JTextField username = new JTextField(15);
 
     /** Field allowing the user to enter a password. */
-    private JPasswordField password = new JPasswordField(15);
+    private final JPasswordField password = new JPasswordField(15);
 
     /**
      * Boolean indicating whether or not this component should display its name.
@@ -74,6 +74,7 @@ public class LoginConfigGui extends AbstractConfigGui {
         init();
     }
 
+    @Override
     public String getLabelResource() {
         return "login_config_element"; // $NON-NLS-1$
     }
@@ -95,6 +96,7 @@ public class LoginConfigGui extends AbstractConfigGui {
     }
 
     /* Implements JMeterGUIComponent.createTestElement() */
+    @Override
     public TestElement createTestElement() {
         ConfigTestElement element = new ConfigTestElement();
         modifyTestElement(element);
@@ -102,6 +104,7 @@ public class LoginConfigGui extends AbstractConfigGui {
     }
 
     /* Implements JMeterGUIComponent.modifyTestElement(TestElement) */
+    @Override
     public void modifyTestElement(TestElement element) {
         configureTestElement(element);
         element.setProperty(new StringProperty(ConfigTestElement.USERNAME, username.getText()));

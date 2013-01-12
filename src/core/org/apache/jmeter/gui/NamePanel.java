@@ -35,10 +35,8 @@ public class NamePanel extends JPanel implements JMeterGUIComponent {
     private static final long serialVersionUID = 240L;
 
     /** A text field containing the name. */
-    private JTextField nameField = new JTextField(15);
+    private final JTextField nameField = new JTextField(15);
 
-    /** The label for the text field. */
-    private JLabel nameLabel;
 
    /**
      * Create a new NamePanel with the default name.
@@ -53,8 +51,8 @@ public class NamePanel extends JPanel implements JMeterGUIComponent {
      */
     private void init() {
         setLayout(new BorderLayout(5, 0));
-
-        nameLabel = new JLabel(JMeterUtils.getResString("name")); // $NON-NLS-1$
+        /** The label for the text field. */
+        JLabel nameLabel = new JLabel(JMeterUtils.getResString("name")); // $NON-NLS-1$
         nameLabel.setName("name");
         nameLabel.setLabelFor(nameField);
 
@@ -62,6 +60,7 @@ public class NamePanel extends JPanel implements JMeterGUIComponent {
         add(nameField, BorderLayout.CENTER);
     }
 
+    @Override
     public void clearGui() {
         setName(getStaticLabel());
     }
@@ -87,31 +86,37 @@ public class NamePanel extends JPanel implements JMeterGUIComponent {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void configure(TestElement testElement) {
         setName(testElement.getName());
     }
 
     /** {@inheritDoc} */
+    @Override
     public JPopupMenu createPopupMenu() {
         return null;
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getStaticLabel() {
         return JMeterUtils.getResString(getLabelResource());
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getLabelResource() {
         return "root"; // $NON-NLS-1$
     }
 
     /** {@inheritDoc} */
+    @Override
     public Collection<String> getMenuCategories() {
         return null;
     }
 
     /** {@inheritDoc} */
+    @Override
     public TestElement createTestElement() {
         WorkBench wb = new WorkBench();
         modifyTestElement(wb);
@@ -119,6 +124,7 @@ public class NamePanel extends JPanel implements JMeterGUIComponent {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void modifyTestElement(TestElement wb) {
         wb.setName(getName());
         wb.setProperty(new StringProperty(TestElement.GUI_CLASS, this.getClass().getName()));
@@ -128,6 +134,7 @@ public class NamePanel extends JPanel implements JMeterGUIComponent {
     /**
      * {@inheritDoc}
      */
+    @Override
     public String getDocAnchor() {
         return null;
     }

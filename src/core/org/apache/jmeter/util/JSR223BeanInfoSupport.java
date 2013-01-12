@@ -30,15 +30,13 @@ import javax.script.ScriptEngineManager;
  */
 public abstract class JSR223BeanInfoSupport extends ScriptingBeanInfoSupport {
 
-    private final static String[] LANGUAGE_TAGS;
+    private static final String[] LANGUAGE_TAGS;
 
     static {
         List<String> shortNames = new ArrayList<String>();
         ScriptEngineManager sem = new ScriptEngineManager();
-        @SuppressWarnings("unchecked") // can be dropped in Java 1.6
         final List<ScriptEngineFactory> engineFactories = sem.getEngineFactories();
         for(ScriptEngineFactory fact : engineFactories){
-            @SuppressWarnings("unchecked") // can be dropped in Java 1.6
             List<String> names = fact.getNames();
             for(String shorName : names) {
                 shortNames.add(shorName);

@@ -19,7 +19,6 @@
 package org.apache.jmeter.config;
 
 import java.io.IOException;
-import java.util.List;
 
 import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
@@ -99,6 +98,7 @@ public class CSVDataSet extends ConfigTestElement
     /**
      * {@inheritDoc}
      */
+    @Override
     public void iterationStart(LoopIterationEvent iterEvent) {
         FileServer server = FileServer.getFileServer();
         final JMeterContext context = getThreadContext();
@@ -144,26 +144,21 @@ public class CSVDataSet extends ConfigTestElement
            
         // TODO: fetch this once as per vars above?
         JMeterVariables threadVars = context.getVariables();
-        String line = null;
+        String[] lineValues = {};
         try {
-            line = server.readLine(alias, getRecycle(), firstLineIsNames);
+            if (getQuotedData()) {
+                lineValues = server.getParsedLine(alias, recycle, firstLineIsNames, delim.charAt(0));
+            } else {
+                String line = server.readLine(alias, recycle, firstLineIsNames);
+                lineValues = JOrphanUtils.split(line, delim, false);
+            }
+            for (int a = 0; a < vars.length && a < lineValues.length; a++) {
+                threadVars.put(vars[a], lineValues[a]);
+            }
         } catch (IOException e) { // treat the same as EOF
             log.error(e.toString());
         }
-        if (line!=null) {// i.e. not EOF
-            try {
-                String[] lineValues = getQuotedData() ?
-                        CSVSaveService.csvSplitString(line, delim.charAt(0))
-                        : JOrphanUtils.split(line, delim, false);
-                for (int a = 0; a < vars.length && a < lineValues.length; a++) {
-                    threadVars.put(vars[a], lineValues[a]);
-                }
-            } catch (IOException e) { // Should only happen for quoting errors
-               log.error("Unexpected error splitting '"+line+"' on '"+delim.charAt(0)+"'");
-            }
-            // TODO - report unused columns?
-            // TODO - provide option to set unused variables ?
-        } else {
+        if (lineValues.length == 0) {// i.e. EOF
             if (getStopThread()) {
                 throw new JMeterStopThreadException("End of file detected");
             }
@@ -256,15 +251,5 @@ public class CSVDataSet extends ConfigTestElement
 
     public void setShareMode(String value) {
         this.shareMode = value;
-    }
-    
-    /** 
-     * {@inheritDoc}}
-     */
-    @Override
-    public List<String> getSearchableTokens() throws Exception {
-        List<String> result = super.getSearchableTokens();
-        result.add(getPropertyAsString("variableNames"));
-        return result;
     }
 }

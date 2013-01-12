@@ -135,6 +135,7 @@ public class ResultSaver extends AbstractTestElement implements Serializable, Sa
      *
      * @see org.apache.jmeter.samplers.SampleListener#sampleOccurred(org.apache.jmeter.samplers.SampleEvent)
      */
+    @Override
     public void sampleOccurred(SampleEvent e) {
       processSample(e.getResult(), new Counter());
    }
@@ -213,9 +214,9 @@ public class ResultSaver extends AbstractTestElement implements Serializable, Sa
         if (!skipSuffix){
             sb.append('.');
             if (contentType != null) {
-                int i = contentType.indexOf("/"); // $NON-NLS-1$
+                int i = contentType.indexOf('/'); // $NON-NLS-1$
                 if (i != -1) {
-                    int j = contentType.indexOf(";"); // $NON-NLS-1$
+                    int j = contentType.indexOf(';'); // $NON-NLS-1$
                     if (j != -1) {
                         sb.append(contentType.substring(i + 1, j));
                     } else {
@@ -234,6 +235,7 @@ public class ResultSaver extends AbstractTestElement implements Serializable, Sa
     /**
      * {@inheritDoc}
      */
+    @Override
     public void sampleStarted(SampleEvent e) {
         // not used
     }
@@ -241,6 +243,7 @@ public class ResultSaver extends AbstractTestElement implements Serializable, Sa
     /**
      * {@inheritDoc}
      */
+    @Override
     public void sampleStopped(SampleEvent e) {
         // not used
     }

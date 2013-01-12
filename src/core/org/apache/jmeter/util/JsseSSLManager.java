@@ -120,6 +120,7 @@ public class JsseSSLManager extends SSLManager {
 
             HttpsURLConnection.setDefaultSSLSocketFactory(new HttpSSLProtocolSocketFactory(this));
             HttpsURLConnection.setDefaultHostnameVerifier(new HostnameVerifier() {
+                @Override
                 public boolean verify(String hostname, SSLSession session) {
                     return true;
                 }
@@ -232,13 +233,17 @@ public class JsseSSLManager extends SSLManager {
         JmeterKeyStore keys = this.getKeyStore();
         managerFactory.init(null, defaultpw == null ? new char[]{} : defaultpw.toCharArray());
         KeyManager[] managers = managerFactory.getKeyManagers();
+        KeyManager[] newManagers = new KeyManager[managers.length];
+        
         log.debug(keys.getClass().toString());
 
         // Now wrap the default managers with our key manager
         for (int i = 0; i < managers.length; i++) {
             if (managers[i] instanceof X509KeyManager) {
                 X509KeyManager manager = (X509KeyManager) managers[i];
-                managers[i] = new WrappedX509KeyManager(manager, keys);
+                newManagers[i] = new WrappedX509KeyManager(manager, keys);
+            } else {
+                newManagers[i] = managers[i];
             }
         }
 
@@ -255,7 +260,7 @@ public class JsseSSLManager extends SSLManager {
                     (X509TrustManager)trustmanagers[i]);
             }
         }
-        context.init(managers, trustmanagers, this.rand);
+        context.init(newManagers, trustmanagers, this.rand);
         if (log.isDebugEnabled()){
             String[] dCiphers = context.getSocketFactory().getDefaultCipherSuites();
             String[] sCiphers = context.getSocketFactory().getSupportedCipherSuites();
@@ -280,12 +285,19 @@ public class JsseSSLManager extends SSLManager {
     private static class WrappedX509KeyManager implements X509KeyManager {
 
         /**
-         * The parent X509KeyManager
+         * The parent X509KeyManager.
+         * This is used for the methods {@link #getServerAliases(String, Principal[])}
+         *  and {@link #chooseServerAlias(String, Principal[], Socket)}
          */
         private final X509KeyManager manager;
 
         /**
-         * The KeyStore this KeyManager uses
+         * The KeyStore this KeyManager uses.
+         * This is used for the remaining X509KeyManager methods: 
+         * {@link #getClientAliases(String, Principal[])},
+         * {@link #getCertificateChain(String)},
+         * {@link #getPrivateKey(String)} and
+         * {@link #chooseClientAlias(String[], Principal[], Socket)}
          */
         private final JmeterKeyStore store;
 
@@ -310,6 +322,7 @@ public class JsseSSLManager extends SSLManager {
          * 
          * @return the array of aliases; may be empty
          */
+        @Override
         public String[] getClientAliases(String keyType, Principal[] issuers) {
             log.debug("WrappedX509Manager: getClientAliases: ");
             // implementation moved to JmeterKeystore as only that has the keyType info
@@ -327,6 +340,7 @@ public class JsseSSLManager extends SSLManager {
          *            the CA certificates we are narrowing our selection on.
          * @return the ServerAliases value
          */
+        @Override
         public String[] getServerAliases(String keyType, Principal[] issuers) {
             log.debug("WrappedX509Manager: getServerAliases: ");
             return this.manager.getServerAliases(keyType, issuers);
@@ -339,6 +353,7 @@ public class JsseSSLManager extends SSLManager {
          *            The client alias
          * @return The CertificateChain value
          */
+        @Override
         public X509Certificate[] getCertificateChain(String alias) {
             log.debug("WrappedX509Manager: getCertificateChain(" + alias + ")");
             return this.store.getCertificateChain(alias);
@@ -351,6 +366,7 @@ public class JsseSSLManager extends SSLManager {
          *            The client alias
          * @return The PrivateKey value
          */
+        @Override
         public PrivateKey getPrivateKey(String alias) {
             PrivateKey privateKey = this.store.getPrivateKey(alias);
             log.debug("WrappedX509Manager: getPrivateKey: " + privateKey);
@@ -375,6 +391,7 @@ public class JsseSSLManager extends SSLManager {
          * 
          * @see javax.net.ssl.X509KeyManager#chooseClientAlias(String[], Principal[], Socket)
          */
+        @Override
         public String chooseClientAlias(String[] keyType, Principal[] issuers, Socket socket) {
             log.debug("keyType: " + keyType[0]);
             String alias = this.store.getAlias();
@@ -390,6 +407,7 @@ public class JsseSSLManager extends SSLManager {
          *
          * @see javax.net.ssl.X509KeyManager#chooseServerAlias(String, Principal[], Socket)
          */
+        @Override
         public String chooseServerAlias(String arg0, Principal[] arg1, Socket arg2) {
             return this.manager.chooseServerAlias(arg0, arg1, arg2);
         }

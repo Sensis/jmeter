@@ -37,13 +37,13 @@ import javax.swing.JTextField;
 import javax.swing.border.Border;
 import javax.swing.border.EmptyBorder;
 
-import org.apache.commons.lang.ArrayUtils;
+import org.apache.commons.lang3.ArrayUtils;
 import org.apache.jmeter.gui.util.FilePanel;
 import org.apache.jmeter.gui.util.HorizontalPanel;
 import org.apache.jmeter.protocol.http.control.AuthManager;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerBase;
 import org.apache.jmeter.protocol.http.sampler.WebServiceSampler;
-import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.protocol.http.util.WSDLHelper;
 import org.apache.jmeter.samplers.gui.AbstractSamplerGui;
 import org.apache.jmeter.testelement.TestElement;
@@ -144,6 +144,7 @@ public class WebServiceSamplerGui extends AbstractSamplerGui implements java.awt
         init();
     }
 
+    @Override
     public String getLabelResource() {
         return "webservice_sampler_title"; // $NON-NLS-1$
     }
@@ -151,6 +152,7 @@ public class WebServiceSamplerGui extends AbstractSamplerGui implements java.awt
     /**
      * @see org.apache.jmeter.gui.JMeterGUIComponent#createTestElement()
      */
+    @Override
     public TestElement createTestElement() {
         WebServiceSampler sampler = new WebServiceSampler();
         this.configureTestElement(sampler);
@@ -163,6 +165,7 @@ public class WebServiceSamplerGui extends AbstractSamplerGui implements java.awt
      *
      * @see org.apache.jmeter.gui.JMeterGUIComponent#modifyTestElement(TestElement)
      */
+    @Override
     public void modifyTestElement(TestElement s) {
         WebServiceSampler sampler = (WebServiceSampler) s;
         this.configureTestElement(sampler);
@@ -171,7 +174,7 @@ public class WebServiceSamplerGui extends AbstractSamplerGui implements java.awt
         sampler.setProtocol(protocol.getText());
         sampler.setPath(path.getText());
         sampler.setWsdlURL(wsdlField.getText());
-        sampler.setMethod(HTTPConstantsInterface.POST);
+        sampler.setMethod(HTTPConstants.POST);
         sampler.setSoapAction(soapAction.getText());
         sampler.setMaintainSession(maintainSession.isSelected());
         sampler.setXmlData(soapXml.getText());
@@ -476,6 +479,7 @@ public class WebServiceSamplerGui extends AbstractSamplerGui implements java.awt
      * @param event
      *            that occurred
      */
+    @Override
     public void actionPerformed(ActionEvent event) {
         final Object eventSource = event.getSource();
         if (eventSource == selectButton) {

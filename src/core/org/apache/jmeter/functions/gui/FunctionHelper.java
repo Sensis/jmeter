@@ -25,10 +25,17 @@ import java.awt.event.ActionListener;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
+
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.InputMap;
 import javax.swing.JButton;
+import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JRootPane;
+import javax.swing.KeyStroke;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
@@ -39,6 +46,7 @@ import org.apache.jmeter.engine.util.CompoundVariable;
 import org.apache.jmeter.functions.Function;
 import org.apache.jmeter.gui.action.ActionRouter;
 import org.apache.jmeter.gui.action.Help;
+import org.apache.jmeter.gui.action.KeyStrokes;
 import org.apache.jmeter.testelement.property.PropertyIterator;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jmeter.util.LocaleChangeEvent;
@@ -56,14 +64,36 @@ public class FunctionHelper extends JDialog implements ActionListener, ChangeLis
 
     private JLabeledTextField cutPasteFunction;
 
-    private JButton generateButton;
-
     public FunctionHelper() {
         super((JFrame) null, JMeterUtils.getResString("function_helper_title"), false); //$NON-NLS-1$
         init();
         JMeterUtils.addLocaleChangeListener(this);
     }
+    
+    /**
+     * Allow Dialog to be closed by ESC key
+     */
+    @Override
+    protected JRootPane createRootPane() {
+        JRootPane rootPane = new JRootPane();
+        KeyStroke stroke = KeyStrokes.ESC;
+        javax.swing.Action escapeAction = new AbstractAction("ESCAPE") { 
+            /**
+             * 
+             */
+            private static final long serialVersionUID = -4036804004190858925L;
 
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) { 
+                setVisible(false);
+            } 
+        };
+        rootPane.getActionMap().put(escapeAction.getValue(Action.NAME), escapeAction);
+        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
+        inputMap.put(stroke, escapeAction.getValue(Action.NAME));
+        return rootPane;
+    }
+    
     private void init() {
         parameterPanel = new ArgumentsPanel(JMeterUtils.getResString("function_params"), false); //$NON-NLS-1$
         initializeFunctionList();
@@ -78,10 +108,11 @@ public class FunctionHelper extends JDialog implements ActionListener, ChangeLis
         JPanel resultsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         cutPasteFunction = new JLabeledTextField(JMeterUtils.getResString("cut_paste_function"), 35); //$NON-NLS-1$
         resultsPanel.add(cutPasteFunction);
-        generateButton = new JButton(JMeterUtils.getResString("generate")); //$NON-NLS-1$
+        JButton generateButton = new JButton(JMeterUtils.getResString("generate")); //$NON-NLS-1$
         generateButton.addActionListener(this);
         resultsPanel.add(generateButton);
         this.getContentPane().add(resultsPanel, BorderLayout.SOUTH);
+        
         this.pack();
         ComponentUtil.centerComponentInWindow(this);
     }
@@ -89,6 +120,7 @@ public class FunctionHelper extends JDialog implements ActionListener, ChangeLis
     private void initializeFunctionList() {
         String[] functionNames = CompoundVariable.getFunctionNames();
         Arrays.sort(functionNames, new Comparator<String>() {
+            @Override
             public int compare(String o1, String o2) {
                 return o1.compareToIgnoreCase(o2);
             }
@@ -97,6 +129,7 @@ public class FunctionHelper extends JDialog implements ActionListener, ChangeLis
         functionList.addChangeListener(this);
     }
 
+    @Override
     public void stateChanged(ChangeEvent event) {
         try {
             Arguments args = new Arguments();
@@ -118,6 +151,7 @@ public class FunctionHelper extends JDialog implements ActionListener, ChangeLis
         }
     }
 
+    @Override
     public void actionPerformed(ActionEvent e) {
         StringBuilder functionCall = new StringBuilder("${");
         functionCall.append(functionList.getText());
@@ -141,6 +175,7 @@ public class FunctionHelper extends JDialog implements ActionListener, ChangeLis
     }
 
     private class HelpListener implements ActionListener {
+        @Override
         public void actionPerformed(ActionEvent e) {
             String[] source = new String[] { Help.HELP_FUNCTIONS, functionList.getText() };
             ActionEvent helpEvent = new ActionEvent(source, e.getID(), "help"); //$NON-NLS-1$
@@ -148,6 +183,7 @@ public class FunctionHelper extends JDialog implements ActionListener, ChangeLis
         }
     }
 
+    @Override
     public void localeChanged(LocaleChangeEvent event) {
         setTitle(JMeterUtils.getResString("function_helper_title"));
         this.getContentPane().removeAll(); // so we can add them again in init

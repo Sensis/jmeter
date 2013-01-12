@@ -70,16 +70,16 @@ public class MailReaderSampler extends AbstractSampler implements Interruptible 
                     "org.apache.jmeter.config.gui.SimpleConfigGui"}));
 
     //+ JMX attributes - do not change the values
-    private final static String SERVER_TYPE = "host_type"; // $NON-NLS-1$
-    private final static String SERVER = "host"; // $NON-NLS-1$
-    private final static String PORT = "port"; // $NON-NLS-1$
-    private final static String USERNAME = "username"; // $NON-NLS-1$
-    private final static String PASSWORD = "password"; // $NON-NLS-1$
-    private final static String FOLDER = "folder"; // $NON-NLS-1$
-    private final static String DELETE = "delete"; // $NON-NLS-1$
-    private final static String NUM_MESSAGES = "num_messages"; // $NON-NLS-1$
+    private static final String SERVER_TYPE = "host_type"; // $NON-NLS-1$
+    private static final String SERVER = "host"; // $NON-NLS-1$
+    private static final String PORT = "port"; // $NON-NLS-1$
+    private static final String USERNAME = "username"; // $NON-NLS-1$
+    private static final String PASSWORD = "password"; // $NON-NLS-1$
+    private static final String FOLDER = "folder"; // $NON-NLS-1$
+    private static final String DELETE = "delete"; // $NON-NLS-1$
+    private static final String NUM_MESSAGES = "num_messages"; // $NON-NLS-1$
     private static final String NEW_LINE = "\n"; // $NON-NLS-1$
-    private final static String STORE_MIME_MESSAGE = "storeMimeMessage";
+    private static final String STORE_MIME_MESSAGE = "storeMimeMessage";
     //-
 
     private static final String RFC_822_DEFAULT_ENCODING = "iso-8859-1"; // RFC 822 uses ascii per default
@@ -132,6 +132,7 @@ public class MailReaderSampler extends AbstractSampler implements Interruptible 
     /**
      * {@inheritDoc}
      */
+    @Override
     public SampleResult sample(Entry e) {
         SampleResult parent = new SampleResult();
         boolean isOK = false; // Did sample succeed?
@@ -564,6 +565,7 @@ public class MailReaderSampler extends AbstractSampler implements Interruptible 
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean interrupt() {
         boolean wasbusy = busy;
         busy = false;

@@ -153,6 +153,7 @@ public class JMeterReport implements JMeterPlugin {
     };
 
     /** {@inheritDoc} */
+    @Override
     public String[][] getIconMappings() {
         String iconProp = JMeterUtils.getPropDefault("jmeter.icons", "org/apache/jmeter/images/icon.properties");
         Properties p = JMeterUtils.loadProperties(iconProp);
@@ -178,6 +179,7 @@ public class JMeterReport implements JMeterPlugin {
     }
 
     /** {@inheritDoc} */
+    @Override
     public String[][] getResourceBundles() {
         return new String[0][];
     }
@@ -194,7 +196,7 @@ public class JMeterReport implements JMeterPlugin {
         treeLis.setActionHandler(ReportActionRouter.getInstance());
         ReportGuiPackage.getInstance(treeLis, treeModel);
         org.apache.jmeter.gui.ReportMainFrame main =
-            new org.apache.jmeter.gui.ReportMainFrame(ReportActionRouter.getInstance(),
+            new org.apache.jmeter.gui.ReportMainFrame(
                 treeModel, treeLis);
         ComponentUtil.centerComponentInWindow(main, 80);
         main.setVisible(true);

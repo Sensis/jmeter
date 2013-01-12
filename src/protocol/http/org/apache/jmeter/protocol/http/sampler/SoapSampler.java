@@ -18,6 +18,7 @@
 
 package org.apache.jmeter.protocol.http.sampler;
 
+import java.io.BufferedInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
@@ -36,7 +37,7 @@ import org.apache.commons.io.IOUtils;
 import org.apache.jmeter.protocol.http.control.CacheManager;
 import org.apache.jmeter.protocol.http.control.Header;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
-import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.samplers.Interruptible;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
@@ -138,14 +139,14 @@ public class SoapSampler extends HTTPSampler2 implements Interruptible { // Impl
             int headerSize = mngr.size();
             for (int idx = 0; idx < headerSize; idx++) {
                 Header hd = mngr.getHeader(idx);
-                if (HEADER_CONTENT_LENGTH.equalsIgnoreCase(hd.getName())) {// Use this to override file length
+                if (HTTPConstants.HEADER_CONTENT_LENGTH.equalsIgnoreCase(hd.getName())) {// Use this to override file length
                     length = Integer.parseInt(hd.getValue());
                 }
                 // All the other headers are set up by HTTPSampler2.setupConnection()
             }
         } else {
             // otherwise we use "text/xml" as the default
-            post.setRequestHeader(HEADER_CONTENT_TYPE, DEFAULT_CONTENT_TYPE); //$NON-NLS-1$
+            post.setRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE, DEFAULT_CONTENT_TYPE); //$NON-NLS-1$
         }
         if (getSendSOAPAction()) {
             post.setRequestHeader(SOAPACTION, getSOAPActionQuoted());
@@ -173,14 +174,16 @@ public class SoapSampler extends HTTPSampler2 implements Interruptible { // Impl
             postedBody.append("Filename: ").append(xmlFile).append("\n");
             postedBody.append("<actual file content, not shown here>");
             post.setRequestEntity(new RequestEntity() {
+                @Override
                 public boolean isRepeatable() {
                     return true;
                 }
 
+                @Override
                 public void writeRequest(OutputStream out) throws IOException {
                     InputStream in = null;
                     try{
-                        in = new FileInputStream(xmlFile);
+                        in = new BufferedInputStream(new FileInputStream(xmlFile));
                         IOUtils.copy(in, out);
                         out.flush();
                     } finally {
@@ -188,17 +191,19 @@ public class SoapSampler extends HTTPSampler2 implements Interruptible { // Impl
                     }
                 }
 
+                @Override
                 public long getContentLength() {
                     switch(length){
                         case -1:
                             return -1;
                         case 0: // No header provided
-                            return (new File(xmlFile)).length();
+                            return new File(xmlFile).length();
                         default:
                             return length;
                         }
                 }
 
+                @Override
                 public String getContentType() {
                     // TODO do we need to add a charset for the file contents?
                     return DEFAULT_CONTENT_TYPE; // $NON-NLS-1$
@@ -207,16 +212,19 @@ public class SoapSampler extends HTTPSampler2 implements Interruptible { // Impl
         } else {
             postedBody.append(getXmlData());
             post.setRequestEntity(new RequestEntity() {
+                @Override
                 public boolean isRepeatable() {
                     return true;
                 }
 
+                @Override
                 public void writeRequest(OutputStream out) throws IOException {
                     // charset must agree with content-type below
                     IOUtils.write(getXmlData(), out, ENCODING); // $NON-NLS-1$
                     out.flush();
                 }
 
+                @Override
                 public long getContentLength() {
                     try {
                         return getXmlData().getBytes(ENCODING).length; // so we don't generate chunked encoding
@@ -226,6 +234,7 @@ public class SoapSampler extends HTTPSampler2 implements Interruptible { // Impl
                     }
                 }
 
+                @Override
                 public String getContentType() {
                     return DEFAULT_CONTENT_TYPE+"; charset="+ENCODING; // $NON-NLS-1$
                 }
@@ -248,7 +257,7 @@ public class SoapSampler extends HTTPSampler2 implements Interruptible { // Impl
         res.setMonitor(false);
 
         res.setSampleLabel(urlStr); // May be replaced later
-        res.setHTTPMethod(HTTPConstantsInterface.POST);
+        res.setHTTPMethod(HTTPConstants.POST);
         res.setURL(url);
         res.sampleStart(); // Count the retries as well in the time
         HttpClient client = null;
@@ -268,8 +277,8 @@ public class SoapSampler extends HTTPSampler2 implements Interruptible { // Impl
 
             if (instream != null) {// will be null for HEAD
 
-                org.apache.commons.httpclient.Header responseHeader = httpMethod.getResponseHeader(HEADER_CONTENT_ENCODING);
-                if (responseHeader != null && ENCODING_GZIP.equals(responseHeader.getValue())) {
+                org.apache.commons.httpclient.Header responseHeader = httpMethod.getResponseHeader(HTTPConstants.HEADER_CONTENT_ENCODING);
+                if (responseHeader != null && HTTPConstants.ENCODING_GZIP.equals(responseHeader.getValue())) {
                     instream = new GZIPInputStream(instream);
                 }
 
@@ -311,7 +320,7 @@ public class SoapSampler extends HTTPSampler2 implements Interruptible { // Impl
             res.setContentType(DEFAULT_CONTENT_TYPE);
             String ct = null;
             org.apache.commons.httpclient.Header h
-                    = httpMethod.getResponseHeader(HEADER_CONTENT_TYPE);
+                    = httpMethod.getResponseHeader(HTTPConstants.HEADER_CONTENT_TYPE);
             if (h != null)// Can be missing, e.g. on redirect
             {
                 ct = h.getValue();
@@ -321,7 +330,7 @@ public class SoapSampler extends HTTPSampler2 implements Interruptible { // Impl
 
             res.setResponseHeaders(getResponseHeaders(httpMethod));
             if (res.isRedirect()) {
-                res.setRedirectLocation(httpMethod.getResponseHeader(HEADER_LOCATION).getValue());
+                res.setRedirectLocation(httpMethod.getResponseHeader(HTTPConstants.HEADER_LOCATION).getValue());
             }
 
             // If we redirected automatically, the URL may have changed

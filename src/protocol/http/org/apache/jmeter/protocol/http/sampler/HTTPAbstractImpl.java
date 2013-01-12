@@ -96,6 +96,7 @@ public abstract class HTTPAbstractImpl implements Interruptible, HTTPConstantsIn
 
     /**
      * Invokes {@link HTTPSamplerBase#getContentEncoding()}
+     * @return the encoding of the content, i.e. its charset name
      */
     protected String getContentEncoding() {
         return testElement.getContentEncoding();
@@ -165,6 +166,9 @@ public abstract class HTTPAbstractImpl implements Interruptible, HTTPConstantsIn
     }
 
     /**
+     * Determine whether to send a file as the entire body of an
+     * entity enclosing request such as POST, PUT or PATCH.
+     * 
      * Invokes {@link HTTPSamplerBase#getSendFileAsPostBody()}
      */
     protected boolean getSendFileAsPostBody() {
@@ -172,6 +176,9 @@ public abstract class HTTPAbstractImpl implements Interruptible, HTTPConstantsIn
     }
 
     /**
+     * Determine whether to send concatenated parameters as the entire body of an
+     * entity enclosing request such as POST, PUT or PATCH.
+     * 
      * Invokes {@link HTTPSamplerBase#getSendParameterValuesAsPostBody()}
      */
     protected boolean getSendParameterValuesAsPostBody() {

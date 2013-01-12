@@ -31,16 +31,18 @@ public abstract class OnErrorTestElement extends AbstractTestElement {
     private static final long serialVersionUID = 240L;
 
     /* Action to be taken when a Sampler error occurs */
-    public final static int ON_ERROR_CONTINUE = 0;
+    public static final int ON_ERROR_CONTINUE = 0;
 
-    public final static int ON_ERROR_STOPTHREAD = 1;
+    public static final int ON_ERROR_STOPTHREAD = 1;
 
-    public final static int ON_ERROR_STOPTEST = 2;
+    public static final int ON_ERROR_STOPTEST = 2;
 
-    public final static int ON_ERROR_STOPTEST_NOW = 3;
+    public static final int ON_ERROR_STOPTEST_NOW = 3;
+
+    public static final int ON_ERROR_START_NEXT_THREAD_LOOP = 4;
 
     /* Property name */
-    public final static String ON_ERROR_ACTION = "OnError.action";
+    public static final String ON_ERROR_ACTION = "OnError.action";
 
     protected OnErrorTestElement() {
         super();
@@ -51,8 +53,7 @@ public abstract class OnErrorTestElement extends AbstractTestElement {
     }
 
     public int getErrorAction() {
-        int value = getPropertyAsInt(ON_ERROR_ACTION);
-        return value;
+        return getPropertyAsInt(ON_ERROR_ACTION);
     }
 
     public boolean isContinue() {
@@ -69,5 +70,9 @@ public abstract class OnErrorTestElement extends AbstractTestElement {
 
     public boolean isStopTestNow() {
         return getErrorAction() == ON_ERROR_STOPTEST_NOW;
+    }
+    
+    public boolean isStartNextThreadLoop() {
+        return getErrorAction() == ON_ERROR_START_NEXT_THREAD_LOOP;
     }
 }

@@ -20,6 +20,8 @@ package org.apache.jmeter.protocol.http.gui;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
@@ -27,6 +29,7 @@ import java.io.IOException;
 import javax.swing.BorderFactory;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
+import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
@@ -41,6 +44,7 @@ import org.apache.jmeter.protocol.http.control.Header;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jorphan.gui.GuiUtils;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
 
@@ -63,17 +67,16 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
 
     private static final String SAVE_COMMAND = "Save"; // $NON-NLS-1$
 
-    private InnerTableModel tableModel;
+    /** Command for adding rows from the clipboard */
+    private static final String ADD_FROM_CLIPBOARD = "addFromClipboard"; // $NON-NLS-1$
 
-    private HeaderManager headerManager;
+    private final InnerTableModel tableModel;
+
+    private final HeaderManager headerManager;
 
     private JTable headerTable;
 
-    private JButton addButton;
-
     private JButton deleteButton;
-
-    private JButton loadButton;
 
     private JButton saveButton;
 
@@ -83,6 +86,7 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
         init();
     }
 
+    @Override
     public TestElement createTestElement() {
         configureTestElement(headerManager);
         return (TestElement) headerManager.clone();
@@ -93,10 +97,9 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
      *
      * @see org.apache.jmeter.gui.JMeterGUIComponent#modifyTestElement(TestElement)
      */
+    @Override
     public void modifyTestElement(TestElement el) {
-        if (headerTable.isEditing()) {// Bug 41905
-            headerTable.getCellEditor().stopCellEditing();
-        }
+        GuiUtils.stopTableEditing(headerTable);
         el.clear();
         el.addTestElement(headerManager);
         configureTestElement(el);
@@ -125,6 +128,7 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
 
     }
 
+    @Override
     public String getLabelResource() {
         return "header_manager_title"; // $NON-NLS-1$
     }
@@ -137,6 +141,7 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
         add(createHeaderTablePanel(), BorderLayout.CENTER);
     }
 
+    @Override
     public void actionPerformed(ActionEvent e) {
         String action = e.getActionCommand();
 
@@ -179,11 +184,7 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
         } else if (action.equals(ADD_COMMAND)) {
             // If a table cell is being edited, we should accept the current
             // value and stop the editing before adding a new row.
-            if (headerTable.isEditing()) {
-                TableCellEditor cellEditor = headerTable.getCellEditor(headerTable.getEditingRow(),
-                        headerTable.getEditingColumn());
-                cellEditor.stopCellEditing();
-            }
+            GuiUtils.stopTableEditing(headerTable);
 
             tableModel.addNewRow();
             tableModel.fireTableDataChanged();
@@ -224,9 +225,50 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
             } catch (IOException ex) {
                 log.error("Could not save headers", ex);
             }
+        } else if (action.equals(ADD_FROM_CLIPBOARD)) {
+            addFromClipboard();
         }
     }
 
+    /**
+     * Add values from the clipboard.
+     * The clipboard is first split into lines, and the lines are then split on ':'
+     * to produce the header name and value.
+     * Lines without a ':' are ignored.
+     */
+    protected void addFromClipboard() {
+        GuiUtils.stopTableEditing(this.headerTable);
+        int rowCount = headerTable.getRowCount();
+        try {
+            String clipboardContent = GuiUtils.getPastedText();
+            String[] clipboardLines = clipboardContent.split("\n"); // $NON-NLS-1$
+            for (String clipboardLine : clipboardLines) {
+                int index = clipboardLine.indexOf(":"); // $NON-NLS-1$
+                if (index > 0) {
+                    Header header = new Header(clipboardLine.substring(0, index), clipboardLine.substring(index+1));
+                    headerManager.add(header);
+                }
+            }
+            tableModel.fireTableDataChanged();
+            if (headerTable.getRowCount() > rowCount) {
+                deleteButton.setEnabled(true);
+                saveButton.setEnabled(true);
+
+                // Highlight (select) the appropriate rows.
+                int rowToSelect = tableModel.getRowCount() - 1;
+                headerTable.setRowSelectionInterval(rowCount, rowToSelect);
+            }
+        } catch (IOException ioe) {
+            JOptionPane.showMessageDialog(this,
+                    "Could not add read headers from clipboard:\n" + ioe.getLocalizedMessage(), "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (UnsupportedFlavorException ufe) {
+            JOptionPane.showMessageDialog(this,
+                    "Could not add retrieved " + DataFlavor.stringFlavor.getHumanPresentableName()
+                            + " from clipboard" + ufe.getLocalizedMessage(), "Error", JOptionPane.ERROR_MESSAGE);
+        }
+    }
+    
     public JPanel createHeaderTablePanel() {
         // create the JTable that holds header per row
         headerTable = new JTable(tableModel);
@@ -254,13 +296,15 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
     private JPanel createButtonPanel() {
         boolean tableEmpty = (tableModel.getRowCount() == 0);
 
-        addButton = createButton("add", 'A', ADD_COMMAND, true); // $NON-NLS-1$
+        JButton addButton = createButton("add", 'A', ADD_COMMAND, true); // $NON-NLS-1$
         deleteButton = createButton("delete", 'D', DELETE_COMMAND, !tableEmpty); // $NON-NLS-1$
-        loadButton = createButton("load", 'L', LOAD_COMMAND, true); // $NON-NLS-1$
+        JButton loadButton = createButton("load", 'L', LOAD_COMMAND, true); // $NON-NLS-1$
         saveButton = createButton("save", 'S', SAVE_COMMAND, !tableEmpty); // $NON-NLS-1$
-
+        JButton addFromClipboard = createButton("add_from_clipboard", 'C', ADD_FROM_CLIPBOARD, true); // $NON-NLS-1$
+        
         JPanel buttonPanel = new JPanel();
         buttonPanel.add(addButton);
+        buttonPanel.add(addFromClipboard);
         buttonPanel.add(deleteButton);
         buttonPanel.add(loadButton);
         buttonPanel.add(saveButton);
@@ -300,6 +344,7 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
             return getValueAt(0, column).getClass();
         }
 
+        @Override
         public int getRowCount() {
             return manager.getHeaders().size();
         }
@@ -307,6 +352,7 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
         /**
          * Required by table model interface.
          */
+        @Override
         public int getColumnCount() {
             return manager.getColumnCount();
         }
@@ -322,6 +368,7 @@ public class HeaderPanel extends AbstractConfigGui implements ActionListener
         /**
          * Required by table model interface.
          */
+        @Override
         public Object getValueAt(int row, int column) {
             Header head = manager.getHeader(row);
             if (column == 0) {

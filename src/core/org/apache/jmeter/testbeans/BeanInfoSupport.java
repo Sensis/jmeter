@@ -115,10 +115,10 @@ public abstract class BeanInfoSupport extends SimpleBeanInfo {
             // Store the resource bundle as an attribute of the BeanDescriptor:
             getBeanDescriptor().setValue(RESOURCE_BUNDLE, resourceBundle);
             // Localize the bean name
-            try {
+            if (resourceBundle.containsKey("displayName")) { // $NON-NLS-1$
                 getBeanDescriptor().setDisplayName(resourceBundle.getString("displayName")); // $NON-NLS-1$
-            } catch (MissingResourceException e) {
-                log.debug("Localized display name not available for bean " + beanClass);
+            } else {
+                log.debug("Localized display name not available for bean " + beanClass);                    
             }
             // Localize the property names and descriptions:
             PropertyDescriptor[] properties = getPropertyDescriptors();
@@ -192,7 +192,7 @@ public abstract class BeanInfoSupport extends SimpleBeanInfo {
     /**
      * Utility method to group and order properties.
      * <p>
-     * It will assing the given group name to each of the named properties, and
+     * It will assign the given group name to each of the named properties, and
      * set their order attribute so that they are shown in the given order.
      * <p>
      * The created groups will get order 1, 2, 3,... in the order in which they

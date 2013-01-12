@@ -53,8 +53,8 @@ public class ReportGui extends AbstractReportGui {
     /** A panel to contain comments on the test plan. */
     private JTextField commentPanel;
 
-    private DirectoryPanel baseDir =
-        new DirectoryPanel(JMeterUtils.getResString("report_base_directory"), "",
+    private final DirectoryPanel baseDir =
+        new DirectoryPanel(JMeterUtils.getResString("report_base_directory"), 
                 Color.white);
 
     /** A panel allowing the user to define variables. */
@@ -89,6 +89,7 @@ public class ReportGui extends AbstractReportGui {
     }
 
     /* Implements JMeterGUIComponent.createTestElement() */
+    @Override
     public TestElement createTestElement() {
         ReportPlan tp = new ReportPlan();
         modifyTestElement(tp);
@@ -96,6 +97,7 @@ public class ReportGui extends AbstractReportGui {
     }
 
     /* Implements JMeterGUIComponent.modifyTestElement(TestElement) */
+    @Override
     public void modifyTestElement(TestElement plan) {
         super.configureTestElement(plan);
         if (plan instanceof ReportPlan) {

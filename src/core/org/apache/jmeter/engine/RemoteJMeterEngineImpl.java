@@ -37,7 +37,7 @@ import org.apache.log.Logger;
 /**
  * This is the JMeter server main code.
  */
-public class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteObject implements RemoteJMeterEngine {
+public final class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteObject implements RemoteJMeterEngine {
     private static final long serialVersionUID = 240L;
 
     private static final Logger log = LoggingManager.getLoggerForClass();
@@ -93,7 +93,7 @@ public class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteObject 
                 localHost = InetAddress.getByName(host);
             }
         } catch (UnknownHostException e1) {
-            throw new RemoteException("Cannot start. Unable to get local host IP address.");
+            throw new RemoteException("Cannot start. Unable to get local host IP address.", e1);
         }
         log.info("IP address="+localHost.getHostAddress());
         String hostName = localHost.getHostName();
@@ -125,7 +125,7 @@ public class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteObject 
         } catch (Exception ex) {
             log.error("rmiregistry needs to be running to start JMeter in server " + "mode\n\t" + ex.toString());
             // Throw an Exception to ensure caller knows ...
-            throw new RemoteException("Cannot start. See server log file.");
+            throw new RemoteException("Cannot start. See server log file.", ex);
         }
     }
 
@@ -136,6 +136,7 @@ public class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteObject 
      * @param testTree
      *            the feature to be added to the ThreadGroup attribute
      */
+    @Override
     public void rconfigure(HashTree testTree, String host, File jmxBase, String scriptName) throws RemoteException {
         log.info("Creating JMeter engine on host "+host+" base '"+jmxBase+"'");
         synchronized(LOCK) { // close window where another remote client might jump in
@@ -151,12 +152,14 @@ public class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteObject 
         FileServer.getFileServer().setBase(jmxBase);
     }
 
+    @Override
     public void rrunTest() throws RemoteException, JMeterEngineException, IllegalStateException {
         log.info("Running test");
         checkOwner("runTest");
         backingEngine.runTest();
     }
 
+    @Override
     public void rreset() throws RemoteException, IllegalStateException {
         // Mail on userlist reported NPE here - looks like only happens if there are network errors, but check anyway
         if (backingEngine != null) {
@@ -168,6 +171,7 @@ public class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteObject 
         }
     }
 
+    @Override
     public void rstopTest(boolean now) throws RemoteException {
         if (now) {
             log.info("Stopping test ...");
@@ -182,6 +186,7 @@ public class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteObject 
      * Called by:
      * - ClientJMeterEngine.exe() which is called on remoteStop 
      */
+    @Override
     public void rexit() throws RemoteException {
         log.info("Exitting");
         backingEngine.exit();
@@ -194,10 +199,10 @@ public class RemoteJMeterEngineImpl extends java.rmi.server.UnicastRemoteObject 
         }
         log.info("Unbound from registry");
         // Help with garbage control
-        System.gc();
-        System.runFinalization();
+        JMeterUtils.helpGC();
     }
 
+    @Override
     public void rsetProperties(Properties p) throws RemoteException, IllegalStateException {
         checkOwner("setProperties");
         if(remotelySetProperties != null) {

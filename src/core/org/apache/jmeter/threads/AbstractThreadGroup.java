@@ -19,9 +19,13 @@
 package org.apache.jmeter.threads;
 
 import java.io.Serializable;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.jmeter.control.Controller;
 import org.apache.jmeter.control.LoopController;
+import org.apache.jmeter.engine.StandardJMeterEngine;
 import org.apache.jmeter.engine.event.LoopIterationListener;
 import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testelement.AbstractTestElement;
@@ -29,48 +33,57 @@ import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.property.IntegerProperty;
 import org.apache.jmeter.testelement.property.JMeterProperty;
 import org.apache.jmeter.testelement.property.TestElementProperty;
+import org.apache.jorphan.collections.ListedHashTree;
 
 /**
  * ThreadGroup holds the settings for a JMeter thread group.
  * 
  * This class is intended to be ThreadSafe.
  */
-public abstract class AbstractThreadGroup extends AbstractTestElement implements Serializable, Controller {
+public abstract class AbstractThreadGroup extends AbstractTestElement 
+    implements Serializable, Controller, JMeterThreadMonitor, TestCompilerHelper {
 
     private static final long serialVersionUID = 240L;
 
+    // Only create the map if it is required
+    private transient final ConcurrentMap<TestElement, Object> children = 
+            TestCompiler.IS_USE_STATIC_SET ? null : new ConcurrentHashMap<TestElement, Object>();
+
+    private static final Object DUMMY = new Object();
+
     /** Action to be taken when a Sampler error occurs */
-    public final static String ON_SAMPLE_ERROR = "ThreadGroup.on_sample_error"; // int
+    public static final String ON_SAMPLE_ERROR = "ThreadGroup.on_sample_error"; // int
 
     /** Continue, i.e. ignore sampler errors */
-    public final static String ON_SAMPLE_ERROR_CONTINUE = "continue";
+    public static final String ON_SAMPLE_ERROR_CONTINUE = "continue";
 
     /** Start next loop for current thread if sampler error occurs */
-    public final static String ON_SAMPLE_ERROR_START_NEXT_LOOP = "startnextloop";
+    public static final String ON_SAMPLE_ERROR_START_NEXT_LOOP = "startnextloop";
 
     /** Stop current thread if sampler error occurs */
-    public final static String ON_SAMPLE_ERROR_STOPTHREAD = "stopthread";
+    public static final String ON_SAMPLE_ERROR_STOPTHREAD = "stopthread";
 
     /** Stop test (all threads) if sampler error occurs */
-    public final static String ON_SAMPLE_ERROR_STOPTEST = "stoptest";
+    public static final String ON_SAMPLE_ERROR_STOPTEST = "stoptest";
 
     /** Stop test NOW (all threads) if sampler error occurs */
-    public final static String ON_SAMPLE_ERROR_STOPTEST_NOW = "stoptestnow";
+    public static final String ON_SAMPLE_ERROR_STOPTEST_NOW = "stoptestnow";
 
     /** Number of threads in the thread group */
-    public final static String NUM_THREADS = "ThreadGroup.num_threads";
+    public static final String NUM_THREADS = "ThreadGroup.num_threads";
 
-    public final static String MAIN_CONTROLLER = "ThreadGroup.main_controller";
+    public static final String MAIN_CONTROLLER = "ThreadGroup.main_controller";
 
-    // @GuardedBy("this")
-    private int numberOfThreads = 0; // Number of active threads in this group
+    private final AtomicInteger numberOfThreads = new AtomicInteger(0); // Number of active threads in this group
 
     /** {@inheritDoc} */
+    @Override
     public boolean isDone() {
         return getSamplerController().isDone();
     }
 
     /** {@inheritDoc} */
+    @Override
     public Sampler next() {
         return getSamplerController().next();
     }
@@ -81,8 +94,7 @@ public abstract class AbstractThreadGroup extends AbstractTestElement implements
      * @return the sampler controller.
      */
     public Controller getSamplerController() {
-        Controller c = (Controller) getProperty(MAIN_CONTROLLER).getObjectValue();
-        return c;
+        return (Controller) getProperty(MAIN_CONTROLLER).getObjectValue();
     }
 
     /**
@@ -107,17 +119,32 @@ public abstract class AbstractThreadGroup extends AbstractTestElement implements
         getSamplerController().addTestElement(child);
     }
 
+    /**
+     * {@inheritDoc}
+     */
+    @Override
+    public final boolean addTestElementOnce(TestElement child){
+        if (children.putIfAbsent(child, DUMMY) == null) {
+            addTestElement(child);
+            return true;
+        }
+        return false;
+    }
+
     /** {@inheritDoc} */
+    @Override
     public void addIterationListener(LoopIterationListener lis) {
         getSamplerController().addIterationListener(lis);
     }
     
     /** {@inheritDoc} */
+    @Override
     public void removeIterationListener(LoopIterationListener iterationListener) {
         getSamplerController().removeIterationListener(iterationListener);
     }
 
     /** {@inheritDoc} */
+    @Override
     public void initialize() {
         Controller c = getSamplerController();
         JMeterProperty property = c.getProperty(TestElement.NAME);
@@ -136,6 +163,7 @@ public abstract class AbstractThreadGroup extends AbstractTestElement implements
     /**
      * NOOP
      */
+    @Override
     public void triggerEndOfLoop() {
         // NOOP
     }
@@ -153,22 +181,22 @@ public abstract class AbstractThreadGroup extends AbstractTestElement implements
     /**
      * Increment the number of active threads
      */
-    synchronized void incrNumberOfThreads() {
-        numberOfThreads++;
+    void incrNumberOfThreads() {
+        numberOfThreads.incrementAndGet();
     }
 
     /**
      * Decrement the number of active threads
      */
-    synchronized void decrNumberOfThreads() {
-        numberOfThreads--;
+    void decrNumberOfThreads() {
+        numberOfThreads.decrementAndGet();
     }
 
     /**
      * Get the number of active threads
      */
-    public synchronized int getNumberOfThreads() {
-        return numberOfThreads;
+    public int getNumberOfThreads() {
+        return numberOfThreads.get();
     }
     
     /**
@@ -216,5 +244,17 @@ public abstract class AbstractThreadGroup extends AbstractTestElement implements
         return getPropertyAsString(AbstractThreadGroup.ON_SAMPLE_ERROR).equalsIgnoreCase(ON_SAMPLE_ERROR_STOPTEST_NOW);
     }
 
-    public abstract void scheduleThread(JMeterThread thread);
+    public abstract boolean stopThread(String threadName, boolean now);
+
+    public abstract int numberOfActiveThreads();
+
+    public abstract void start(int groupCount, ListenerNotifier notifier, ListedHashTree threadGroupTree, StandardJMeterEngine engine);
+
+    public abstract boolean verifyThreadsStopped();
+
+    public abstract void waitThreadsStopped();
+
+    public abstract void tellThreadsToStop();
+
+    public abstract void stop();
 }

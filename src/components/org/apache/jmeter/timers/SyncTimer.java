@@ -22,10 +22,9 @@ import java.io.Serializable;
 import java.util.concurrent.BrokenBarrierException;
 import java.util.concurrent.CyclicBarrier;
 
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testelement.AbstractTestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.ThreadListener;
 import org.apache.jmeter.threads.JMeterContextService;
 
@@ -35,7 +34,7 @@ import org.apache.jmeter.threads.JMeterContextService;
  * thus create large instant loads at various points of the test plan.
  *
  */
-public class SyncTimer extends AbstractTestElement implements Timer, Serializable, TestBean, TestListener, ThreadListener {
+public class SyncTimer extends AbstractTestElement implements Timer, Serializable, TestBean, TestStateListener, ThreadListener {
 	
 	/**
 	 * Wrapper to {@link CyclicBarrier} to allow lazy init of CyclicBarrier when SyncTimer is configured with 0
@@ -132,6 +131,7 @@ public class SyncTimer extends AbstractTestElement implements Timer, Serializabl
     /**
      * {@inheritDoc}
      */
+    @Override
     public long delay() {
     	if(getGroupSize()>=0) {
     		int arrival = 0;
@@ -165,6 +165,7 @@ public class SyncTimer extends AbstractTestElement implements Timer, Serializabl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void testEnded() {
         this.testEnded(null);        
     }
@@ -172,6 +173,7 @@ public class SyncTimer extends AbstractTestElement implements Timer, Serializabl
     /**
      * Reset timerCounter
      */
+    @Override
     public void testEnded(String host) {
     	createBarrier();
     }
@@ -179,6 +181,7 @@ public class SyncTimer extends AbstractTestElement implements Timer, Serializabl
     /**
      * {@inheritDoc}
      */
+    @Override
     public void testStarted() {
         testStarted(null);
     }
@@ -186,14 +189,11 @@ public class SyncTimer extends AbstractTestElement implements Timer, Serializabl
     /**
      * Reset timerCounter
      */
+    @Override
     public void testStarted(String host) {
         createBarrier();
     }
 
-	public void testIterationStart(LoopIterationEvent event) {
-		// NOOP
-	}
-	
 	/**
 	 * 
 	 */
@@ -206,7 +206,8 @@ public class SyncTimer extends AbstractTestElement implements Timer, Serializabl
         }
 	}
 
-	public void threadStarted() {
+	@Override
+    public void threadStarted() {
 		if(getGroupSize() == 0) {
 	        int numThreadsInGroup = JMeterContextService.getContext().getThreadGroup().getNumThreads();
 			// Unique Barrier creation ensured by synchronized setup
@@ -214,7 +215,8 @@ public class SyncTimer extends AbstractTestElement implements Timer, Serializabl
         }
 	}
 
-	public void threadFinished() {
+	@Override
+    public void threadFinished() {
 		// NOOP
 	}
 }

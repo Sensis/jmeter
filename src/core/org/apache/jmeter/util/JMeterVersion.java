@@ -39,7 +39,7 @@ import org.apache.commons.io.IOUtils;
  * Utility class to define the JMeter Version string
  *
  */
-public class JMeterVersion {
+public final class JMeterVersion {
 
     /*
      *
@@ -49,7 +49,7 @@ public class JMeterVersion {
      * This ensures that JMeterUtils always gets the correct
      * version, even if JMeterUtils is not re-compiled during the build.
      */
-    private static final String VERSION = "2.8-SENSIS-20120808";
+    private static final String VERSION = "2.9-SENSIS-SNAPSHOT";
 
     private static final String IMPLEMENTATION;
     
@@ -96,7 +96,7 @@ public class JMeterVersion {
         super();
     }
 
-    static final String getVERSION() {
+    static String getVERSION() {
         return IMPLEMENTATION;
     }
 

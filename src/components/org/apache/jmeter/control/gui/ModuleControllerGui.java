@@ -18,16 +18,23 @@
 
 package org.apache.jmeter.control.gui;
 
-import java.awt.FlowLayout;
+import java.awt.Dimension;
+import java.awt.event.ActionEvent;
+import java.awt.event.ActionListener;
 import java.util.Collection;
 import java.util.Iterator;
 
+import javax.swing.Box;
+import javax.swing.BoxLayout;
 import javax.swing.DefaultComboBoxModel;
+import javax.swing.JButton;
 import javax.swing.JComboBox;
 import javax.swing.JLabel;
 import javax.swing.JMenu;
 import javax.swing.JPanel;
 import javax.swing.JPopupMenu;
+import javax.swing.JTree;
+import javax.swing.tree.TreePath;
 
 import org.apache.jmeter.control.Controller;
 import org.apache.jmeter.control.ModuleController;
@@ -46,7 +53,7 @@ import org.apache.jorphan.gui.layout.VerticalLayout;
  * ModuleController Gui.
  *
  */
-public class ModuleControllerGui extends AbstractControllerGui
+public class ModuleControllerGui extends AbstractControllerGui implements ActionListener
 // implements UnsharedComponent
 {
 
@@ -60,6 +67,8 @@ public class ModuleControllerGui extends AbstractControllerGui
 
     private final JLabel warningLabel;
 
+    private JButton expandButton;
+
     /**
      * Initializes the gui panel for the ModuleController instance.
      */
@@ -71,6 +80,7 @@ public class ModuleControllerGui extends AbstractControllerGui
     }
 
     /** {@inheritDoc}} */
+    @Override
     public String getLabelResource() {
         return "module_controller_title"; // $NON-NLS-1$
     }
@@ -108,6 +118,7 @@ public class ModuleControllerGui extends AbstractControllerGui
     }
 
     /** {@inheritDoc}} */
+    @Override
     public TestElement createTestElement() {
         ModuleController mc = new ModuleController();
         configureTestElement(mc);
@@ -118,6 +129,7 @@ public class ModuleControllerGui extends AbstractControllerGui
     }
 
     /** {@inheritDoc}} */
+    @Override
     public void modifyTestElement(TestElement element) {
         configureTestElement(element);
         TreeNodeWrapper tnw = (TreeNodeWrapper) nodesModel.getSelectedItem();
@@ -164,18 +176,24 @@ public class ModuleControllerGui extends AbstractControllerGui
         add(makeTitlePanel());
 
         // DROP-DOWN MENU
-        JPanel modulesPanel = new JPanel(new FlowLayout(FlowLayout.LEFT, 20, 5));
+        JPanel modulesPanel = new JPanel();
+        modulesPanel.setLayout(new BoxLayout(modulesPanel, BoxLayout.X_AXIS));
         JLabel nodesLabel = new JLabel(JMeterUtils.getResString("module_controller_module_to_run")); // $NON-NLS-1$
         modulesPanel.add(nodesLabel);
+        modulesPanel.add(Box.createRigidArea(new Dimension(5,0)));
         nodesLabel.setLabelFor(nodes);
         reinitialize();
         modulesPanel.add(nodes);
         modulesPanel.add(warningLabel);
+
+        modulesPanel.add(Box.createRigidArea(new Dimension(5,0)));
+        expandButton = new JButton(JMeterUtils.getResString("expand")); //$NON-NLS-1$
+        expandButton.addActionListener(this);
+        modulesPanel.add(expandButton);
         add(modulesPanel);
     }
 
     private void reinitialize() {
-        TreeNodeWrapper current;
         nodesModel.removeAllElements();
         GuiPackage gp = GuiPackage.getInstance();
         JMeterTreeNode root;
@@ -184,6 +202,7 @@ public class ModuleControllerGui extends AbstractControllerGui
             buildNodesModel(root, "", 0); // $NON-NLS-1$
         }
         if (selected != null) {
+            TreeNodeWrapper current;
             for (int i = 0; i < nodesModel.getSize(); i++) {
                 current = (TreeNodeWrapper) nodesModel.getElementAt(i);
                 if (current.getTreeNode() != null && current.getTreeNode().equals(selected)) {
@@ -198,65 +217,56 @@ public class ModuleControllerGui extends AbstractControllerGui
         if (level == 0 && (parent_name == null || parent_name.length() == 0)) {
             nodesModel.addElement(new TreeNodeWrapper(null, "")); // $NON-NLS-1$
         }
-        String seperator = " > "; // $NON-NLS-1$
+        String separator = " > "; // $NON-NLS-1$
         if (node != null) {
+            StringBuilder name = new StringBuilder();
             for (int i = 0; i < node.getChildCount(); i++) {
-                StringBuilder name = new StringBuilder();
+                name.setLength(0);
                 JMeterTreeNode cur = (JMeterTreeNode) node.getChildAt(i);
                 TestElement te = cur.getTestElement();
                 if (te instanceof AbstractThreadGroup) {
                     name.append(parent_name);
                     name.append(cur.getName());
-                    name.append(seperator);
+                    name.append(separator);
                     buildNodesModel(cur, name.toString(), level);
                 } else if (te instanceof Controller && !(te instanceof ModuleController)) {
-                    name.append(spaces(level));
                     name.append(parent_name);
                     name.append(cur.getName());
                     TreeNodeWrapper tnw = new TreeNodeWrapper(cur, name.toString());
                     nodesModel.addElement(tnw);
-                    name = new StringBuilder();
-                    name.append(cur.getName());
-                    name.append(seperator);
+                    name.append(separator);
                     buildNodesModel(cur, name.toString(), level + 1);
                 } else if (te instanceof TestPlan || te instanceof WorkBench) {
                     name.append(cur.getName());
-                    name.append(seperator);
+                    name.append(separator);
                     buildNodesModel(cur, name.toString(), 0);
                 }
             }
         }
     }
 
-    private String spaces(int level) {
-        int multi = 4;
-        StringBuilder spaces = new StringBuilder(level * multi);
-        for (int i = 0; i < level * multi; i++) {
-            spaces.append(" "); // $NON-NLS-1$
-        }
-        return spaces.toString();
-    }
-}
-
-class TreeNodeWrapper {
-
-    private final JMeterTreeNode tn;
-
-    private final String label;
-
-    public TreeNodeWrapper(JMeterTreeNode tn, String label) {
-        this.tn = tn;
-        this.label = label;
-    }
-
-    public JMeterTreeNode getTreeNode() {
-        return tn;
-    }
-
-    /** {@inheritDoc}} */
     @Override
-    public String toString() {
-        return label;
+    public void actionPerformed(ActionEvent e) {
+        if(e.getSource()==expandButton) {
+            JMeterTreeNode currentSelectedNode = null;
+            TreeNodeWrapper tnw = (TreeNodeWrapper) nodesModel.getSelectedItem();
+            if (tnw != null && tnw.getTreeNode() != null) {
+                currentSelectedNode = tnw.getTreeNode();
+            }
+            if (currentSelectedNode != null) {
+                expandToSelectNode(currentSelectedNode);
+            }
+            return;
+        } 
     }
 
+    /**
+     * @param selected JMeterTreeNode tree node to expand
+     */
+    protected void expandToSelectNode(JMeterTreeNode selected) {
+        GuiPackage guiInstance = GuiPackage.getInstance();
+        JTree jTree = guiInstance.getMainFrame().getTree();
+        jTree.expandPath(new TreePath(selected.getPath()));
+        selected.setMarkedBySearch(true);
+    }
 }

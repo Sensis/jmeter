@@ -30,16 +30,19 @@ import java.io.Serializable;
 import java.net.URL;
 import java.util.ArrayList;
 
-import org.apache.commons.httpclient.cookie.CookiePolicy;
+import org.apache.http.client.params.CookiePolicy;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestIterationListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.property.BooleanProperty;
 import org.apache.jmeter.testelement.property.CollectionProperty;
 import org.apache.jmeter.testelement.property.PropertyIterator;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
+import org.apache.jorphan.reflect.ClassTools;
+import org.apache.jorphan.util.JMeterException;
 import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 
@@ -50,7 +53,7 @@ import org.apache.log.Logger;
  * Now uses Commons HttpClient parsing and matching code (since 2.1.2)
  *
  */
-public class CookieManager extends ConfigTestElement implements TestListener, Serializable {
+public class CookieManager extends ConfigTestElement implements TestStateListener, TestIterationListener, Serializable {
     private static final long serialVersionUID = 233L;
 
     private static final Logger log = LoggingManager.getLoggerForClass();
@@ -61,6 +64,8 @@ public class CookieManager extends ConfigTestElement implements TestListener, Se
     private static final String COOKIES = "CookieManager.cookies";// $NON-NLS-1$
 
     private static final String POLICY = "CookieManager.policy"; //$NON-NLS-1$
+    
+    private static final String IMPLEMENTATION = "CookieManager.implementation"; //$NON-NLS-1$
     //-- JMX tag values
 
     private static final String TAB = "\t"; //$NON-NLS-1$
@@ -97,6 +102,8 @@ public class CookieManager extends ConfigTestElement implements TestListener, Se
     private transient CollectionProperty initialCookies;
 
     public static final String DEFAULT_POLICY = CookiePolicy.BROWSER_COMPATIBILITY;
+    
+    public static final String DEFAULT_IMPLEMENTATION = HC3CookieHandler.class.getName();
 
     public CookieManager() {
         clearCookies(); // Ensure that there is always a collection available
@@ -134,6 +141,14 @@ public class CookieManager extends ConfigTestElement implements TestListener, Se
 
     public void setClearEachIteration(boolean clear) {
         setProperty(new BooleanProperty(CLEAR, clear));
+    }
+
+    public String getImplementation() {
+        return getPropertyAsString(IMPLEMENTATION, DEFAULT_IMPLEMENTATION);
+    }
+
+    public void setImplementation(String implementation){
+        setProperty(IMPLEMENTATION, implementation, DEFAULT_IMPLEMENTATION);
     }
 
     /**
@@ -183,7 +198,7 @@ public class CookieManager extends ConfigTestElement implements TestListener, Se
             final CollectionProperty cookies = getCookies();
             while ((line = reader.readLine()) != null) {
                 try {
-                    if (line.startsWith("#") || line.trim().length() == 0) {//$NON-NLS-1$
+                    if (line.startsWith("#") || JOrphanUtils.isBlank(line)) {//$NON-NLS-1$
                         continue;
                     }
                     String[] st = JOrphanUtils.split(line, TAB, false);
@@ -203,8 +218,8 @@ public class CookieManager extends ConfigTestElement implements TestListener, Se
                     if (st[_path].length()==0) {
                         st[_path] = "/"; //$NON-NLS-1$
                     }
-                    boolean secure = Boolean.valueOf(st[_secure]).booleanValue();
-                    long expires = Long.valueOf(st[_expires]).longValue();
+                    boolean secure = Boolean.parseBoolean(st[_secure]);
+                    long expires = Long.parseLong(st[_expires]);
                     if (expires==Long.MAX_VALUE) {
                         expires=0;
                     }
@@ -353,28 +368,37 @@ public class CookieManager extends ConfigTestElement implements TestListener, Se
     }
 
     /** {@inheritDoc} */
+    @Override
     public void testStarted() {
         initialCookies = getCookies();
-        cookieHandler = new HC3CookieHandler(getPolicy());
+        try {
+            cookieHandler = (CookieHandler) ClassTools.construct(getImplementation(), getPolicy());
+        } catch (JMeterException e) {
+            log.error("Unable to load or invoke class: " + getImplementation(), e);
+        }
         if (log.isDebugEnabled()){
             log.debug("Policy: "+getPolicy()+" Clear: "+getClearEachIteration());
         }
     }
 
     /** {@inheritDoc} */
+    @Override
     public void testEnded() {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void testStarted(String host) {
         testStarted();
     }
 
     /** {@inheritDoc} */
+    @Override
     public void testEnded(String host) {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void testIterationStart(LoopIterationEvent event) {
         if (getClearEachIteration()) {
             log.debug("Initialise cookies from pre-defined list");

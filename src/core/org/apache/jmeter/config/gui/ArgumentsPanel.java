@@ -22,17 +22,12 @@ import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Component;
 import java.awt.FlowLayout;
-import java.awt.Toolkit;
-import java.awt.datatransfer.Clipboard;
 import java.awt.datatransfer.DataFlavor;
-import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
-import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.Iterator;
 
 import javax.swing.BorderFactory;
@@ -45,13 +40,14 @@ import javax.swing.JTable;
 import javax.swing.ListSelectionModel;
 import javax.swing.table.TableCellEditor;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.Argument;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.gui.util.HeaderAsPropertyRenderer;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.property.PropertyIterator;
 import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jorphan.gui.GuiUtils;
 import org.apache.jorphan.gui.ObjectTableModel;
 import org.apache.jorphan.reflect.Functor;
 
@@ -77,9 +73,6 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
     /** A button for adding new arguments to the table. */
     private JButton add;
 
-    /** A button for adding new arguments to the table from the clipboard. */
-    private JButton addFromClipboard;
-
     /** A button for removing arguments from the table. */
     private JButton delete;
 
@@ -101,8 +94,6 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
     private JButton down;
 
     private final boolean enableUpDown;
-
-    private JButton showDetail;
 
     /** Command for adding a row to the table. */
     private static final String ADD = "add"; // $NON-NLS-1$
@@ -210,11 +201,13 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
         return null;
     }
 
+    @Override
     public String getLabelResource() {
         return "user_defined_variables"; // $NON-NLS-1$
     }
 
     /* Implements JMeterGUIComponent.createTestElement() */
+    @Override
     public TestElement createTestElement() {
         Arguments args = new Arguments();
         modifyTestElement(args);
@@ -222,8 +215,9 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
     }
 
     /* Implements JMeterGUIComponent.modifyTestElement(TestElement) */
+    @Override
     public void modifyTestElement(TestElement args) {
-        stopTableEditing();
+        GuiUtils.stopTableEditing(table);
         Arguments arguments = null;
         if (args instanceof Arguments) {
             arguments = (Arguments) args;
@@ -329,7 +323,7 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
      * Clear all rows from the table. T.Elanjchezhiyan(chezhiyan@siptech.co.in)
      */
     public void clear() {
-        stopTableEditing();
+        GuiUtils.stopTableEditing(table);
         tableModel.clearData();
     }
 
@@ -340,6 +334,7 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
      * @param e
      *            the event that has occurred
      */
+    @Override
     public void actionPerformed(ActionEvent e) {
         String action = e.getActionCommand();
         if (action.equals(DELETE)) {
@@ -460,7 +455,7 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
     protected void addArgument() {
         // If a table cell is being edited, we should accept the current value
         // and stop the editing before adding a new row.
-        stopTableEditing();
+        GuiUtils.stopTableEditing(table);
 
         tableModel.addRow(makeNewArgument());
 
@@ -479,38 +474,24 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
      * Add values from the clipboard
      */
     protected void addFromClipboard() {
-        stopTableEditing();
+        GuiUtils.stopTableEditing(table);
         int rowCount = table.getRowCount();
-        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
-        Transferable trans = clipboard.getContents(null);
-        DataFlavor[] flavourList = trans.getTransferDataFlavors();
-        Collection<DataFlavor> flavours = new ArrayList<DataFlavor>(flavourList.length);
-        if (Collections.addAll(flavours, flavourList) && flavours.contains(DataFlavor.stringFlavor)) {
-            try {
-                String clipboardContent = (String) trans.getTransferData(DataFlavor.stringFlavor);
-                String[] clipboardLines = clipboardContent.split("\n");
-                for (String clipboardLine : clipboardLines) {
-                    String[] clipboardCols = clipboardLine.split("\t");
-                    if (clipboardCols.length > 0) {
-                        Argument argument = makeNewArgument();
-                        argument.setName(clipboardCols[0]);
-                        if (clipboardCols.length > 1) {
-                            argument.setValue(clipboardCols[1]);
-                            if (clipboardCols.length > 2) {
-                                argument.setDescription(clipboardCols[2]);
-                            }
+        try {
+            String clipboardContent = GuiUtils.getPastedText();
+            String[] clipboardLines = clipboardContent.split("\n");
+            for (String clipboardLine : clipboardLines) {
+                String[] clipboardCols = clipboardLine.split("\t");
+                if (clipboardCols.length > 0) {
+                    Argument argument = makeNewArgument();
+                    argument.setName(clipboardCols[0]);
+                    if (clipboardCols.length > 1) {
+                        argument.setValue(clipboardCols[1]);
+                        if (clipboardCols.length > 2) {
+                            argument.setDescription(clipboardCols[2]);
                         }
-                        tableModel.addRow(argument);
                     }
+                    tableModel.addRow(argument);
                 }
-            } catch (IOException ioe) {
-                JOptionPane.showMessageDialog(this,
-                        "Could not add read arguments from clipboard:\n" + ioe.getLocalizedMessage(), "Error",
-                        JOptionPane.ERROR_MESSAGE);
-            } catch (UnsupportedFlavorException ufe) {
-                JOptionPane.showMessageDialog(this,
-                        "Could not add retrieve " + DataFlavor.stringFlavor.getHumanPresentableName()
-                                + " from clipboard" + ufe.getLocalizedMessage(), "Error", JOptionPane.ERROR_MESSAGE);
             }
             if (table.getRowCount() > rowCount) {
                 // Enable DELETE (which may already be enabled, but it won't hurt)
@@ -520,6 +501,14 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
                 int rowToSelect = tableModel.getRowCount() - 1;
                 table.setRowSelectionInterval(rowCount, rowToSelect);
             }
+        } catch (IOException ioe) {
+            JOptionPane.showMessageDialog(this,
+                    "Could not add read arguments from clipboard:\n" + ioe.getLocalizedMessage(), "Error",
+                    JOptionPane.ERROR_MESSAGE);
+        } catch (UnsupportedFlavorException ufe) {
+            JOptionPane.showMessageDialog(this,
+                    "Could not add retrieve " + DataFlavor.stringFlavor.getHumanPresentableName()
+                            + " from clipboard" + ufe.getLocalizedMessage(), "Error", JOptionPane.ERROR_MESSAGE);
         }
     }
 
@@ -535,14 +524,12 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
     /**
      * Stop any editing that is currently being done on the table. This will
      * save any changes that have already been made.
+     * Needed for subclasses
      */
     protected void stopTableEditing() {
-        if (table.isEditing()) {
-            TableCellEditor cellEditor = table.getCellEditor(table.getEditingRow(), table.getEditingColumn());
-            cellEditor.stopCellEditing();
-        }
+        GuiUtils.stopTableEditing(table);
     }
-
+    
     /**
      * Initialize the table model used for the arguments table.
      */
@@ -625,15 +612,15 @@ public class ArgumentsPanel extends AbstractConfigGui implements ActionListener 
      * @return a GUI panel containing the buttons
      */
     private JPanel makeButtonPanel() {
-        showDetail = new JButton(JMeterUtils.getResString("detail")); // $NON-NLS-1$
+        JButton showDetail = new JButton(JMeterUtils.getResString("detail")); // $NON-NLS-1$
         showDetail.setActionCommand(DETAIL);
         showDetail.setEnabled(true);
         
         add = new JButton(JMeterUtils.getResString("add")); // $NON-NLS-1$
         add.setActionCommand(ADD);
         add.setEnabled(true);
-
-        addFromClipboard = new JButton(JMeterUtils.getResString("add_from_clipboard")); // $NON-NLS-1$
+        /** A button for adding new arguments to the table from the clipboard. */
+        JButton addFromClipboard = new JButton(JMeterUtils.getResString("add_from_clipboard")); // $NON-NLS-1$
         addFromClipboard.setActionCommand(ADD_FROM_CLIPBOARD);
         addFromClipboard.setEnabled(true);
 

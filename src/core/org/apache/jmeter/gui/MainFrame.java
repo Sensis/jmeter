@@ -23,6 +23,7 @@ import java.awt.Component;
 import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Insets;
+import java.awt.Toolkit;
 import java.awt.datatransfer.DataFlavor;
 import java.awt.datatransfer.Transferable;
 import java.awt.datatransfer.UnsupportedFlavorException;
@@ -39,6 +40,7 @@ import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 import java.io.File;
 import java.io.IOException;
+import java.lang.reflect.Field;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
@@ -67,18 +69,18 @@ import javax.swing.tree.TreeCellRenderer;
 import javax.swing.tree.TreeModel;
 import javax.swing.tree.TreePath;
 
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.gui.action.ActionNames;
 import org.apache.jmeter.gui.action.ActionRouter;
 import org.apache.jmeter.gui.action.LoadDraggedFile;
 import org.apache.jmeter.gui.tree.JMeterCellRenderer;
 import org.apache.jmeter.gui.tree.JMeterTreeListener;
+import org.apache.jmeter.gui.util.EscapeDialog;
 import org.apache.jmeter.gui.util.JMeterMenuBar;
 import org.apache.jmeter.gui.util.JMeterToolBar;
 import org.apache.jmeter.samplers.Clearable;
 import org.apache.jmeter.samplers.Remoteable;
 import org.apache.jmeter.testelement.TestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.gui.ComponentUtil;
@@ -93,7 +95,7 @@ import org.apache.log.Priority;
  * JMeter component GUIs.
  *
  */
-public class MainFrame extends JFrame implements TestListener, Remoteable, DropTargetListener, Clearable, ActionListener {
+public class MainFrame extends JFrame implements TestStateListener, Remoteable, DropTargetListener, Clearable, ActionListener {
 
     private static final long serialVersionUID = 240L;
 
@@ -101,9 +103,12 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
     // The name is chosen to be an unlikely host-name
     private static final String LOCAL = "*local*"; // $NON-NLS-1$
 
+    // The application name
+    private static final String DEFAULT_APP_NAME = "Apache JMeter"; // $NON-NLS-1$
+    
     // The default title for the Menu bar
-    private static final String DEFAULT_TITLE =
-        "Apache JMeter ("+JMeterUtils.getJMeterVersion()+")"; // $NON-NLS-1$ $NON-NLS-2$
+    private static final String DEFAULT_TITLE = DEFAULT_APP_NAME +
+            " (" + JMeterUtils.getJMeterVersion() + ")"; // $NON-NLS-1$ $NON-NLS-2$
     
     // Allow display/hide toolbar
     private static final boolean DISPLAY_TOOLBAR =
@@ -135,13 +140,13 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
     private JTree tree;
 
     /** An image which is displayed when a test is running. */
-    private ImageIcon runningIcon = JMeterUtils.getImage("thread.enabled.gif");// $NON-NLS-1$
+    private final ImageIcon runningIcon = JMeterUtils.getImage("thread.enabled.gif");// $NON-NLS-1$
 
     /** An image which is displayed when a test is not currently running. */
-    private ImageIcon stoppedIcon = JMeterUtils.getImage("thread.disabled.gif");// $NON-NLS-1$
+    private final ImageIcon stoppedIcon = JMeterUtils.getImage("thread.disabled.gif");// $NON-NLS-1$
 
     /** An image which is displayed to indicate FATAL, ERROR or WARNING. */
-    private ImageIcon warningIcon = JMeterUtils.getImage("warning.png");// $NON-NLS-1$
+    private final ImageIcon warningIcon = JMeterUtils.getImage("warning.png");// $NON-NLS-1$
 
     /** The button used to display the running/stopped image. */
     private JButton runningIndicator;
@@ -153,7 +158,7 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
     private int previousDragYLocation = 0;
 
     /** The set of currently running hosts. */
-    private Set<String> hosts = new HashSet<String>();
+    private final Set<String> hosts = new HashSet<String>();
 
     /** A message dialog shown while JMeter threads are stopping. */
     private JDialog stoppingMessage;
@@ -179,16 +184,12 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
     /**
      * Create a new JMeter frame.
      *
-     * @param actionHandler
-     *            this parameter is not used
      * @param treeModel
      *            the model for the test tree
      * @param treeListener
      *            the listener for the test tree
      */
-    public MainFrame(ActionListener actionHandler, TreeModel treeModel, JMeterTreeListener treeListener) {
-        // TODO: actionHandler isn't used -- remove it from the parameter list
-        // this.actionHandler = actionHandler;
+    public MainFrame(TreeModel treeModel, JMeterTreeListener treeListener) {
 
         // TODO: Make the running indicator its own class instead of a JButton
         runningIndicator = new JButton(stoppedIcon);
@@ -196,8 +197,10 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
         runningIndicator.setBorder(BorderFactory.createEmptyBorder());
 
         totalThreads = new JLabel("0"); // $NON-NLS-1$
+        totalThreads.setToolTipText(JMeterUtils.getResString("total_threads_tooltip")); // $NON-NLS-1$
         activeThreads = new JLabel("0"); // $NON-NLS-1$
-
+        activeThreads.setToolTipText(JMeterUtils.getResString("active_threads_tooltip")); // $NON-NLS-1$
+        
         warnIndicator = new JButton(warningIcon);
         warnIndicator.setMargin(new Insets(0, 0, 0, 0));
         // Transparent JButton with no border
@@ -341,13 +344,14 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
         if (stoppingMessage != null){
             stoppingMessage.dispose();
         }
-        stoppingMessage = new JDialog(this, JMeterUtils.getResString("stopping_test_title"), true); //$NON-NLS-1$
+        stoppingMessage = new EscapeDialog(this, JMeterUtils.getResString("stopping_test_title"), true); //$NON-NLS-1$
         JLabel stopLabel = new JLabel(JMeterUtils.getResString("stopping_test") + ": " + host); //$NON-NLS-1$$NON-NLS-2$
         stopLabel.setBorder(BorderFactory.createEmptyBorder(20, 20, 20, 20));
         stoppingMessage.getContentPane().add(stopLabel);
         stoppingMessage.pack();
         ComponentUtil.centerComponentInComponent(this, stoppingMessage);
         SwingUtilities.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 if (stoppingMessage != null) {// TODO - how can this be null?
                     stoppingMessage.setVisible(true);
@@ -358,6 +362,7 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
 
     public void updateCounts() {
         SwingUtilities.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 activeThreads.setText(Integer.toString(JMeterContextService.getNumberOfThreads()));
                 totalThreads.setText(Integer.toString(JMeterContextService.getTotalThreads()));
@@ -373,13 +378,14 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
         return tree;
     }
 
-    // TestListener implementation
+    // TestStateListener implementation
 
     /**
      * Called when a test is started on the local system. This implementation
      * sets the running indicator and ensures that the menubar is enabled and in
      * the running state.
      */
+    @Override
     public void testStarted() {
         testStarted(LOCAL);
         menuBar.setEnabled(true);
@@ -393,6 +399,7 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
      * @param host
      *            the host where the test is starting
      */
+    @Override
     public void testStarted(String host) {
         hosts.add(host);
         runningIndicator.setIcon(runningIcon);
@@ -407,6 +414,7 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
      * disables the menubar, stops the running indicator, and closes the
      * stopping message dialog.
      */
+    @Override
     public void testEnded() {
         testEnded(LOCAL);
         menuBar.setEnabled(false);
@@ -419,6 +427,7 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
      * @param host
      *            the host where the test is ending
      */
+    @Override
     public void testEnded(String host) {
         hosts.remove(host);
         if (hosts.size() == 0) {
@@ -431,10 +440,6 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
             stoppingMessage.dispose();
             stoppingMessage = null;
         }
-    }
-
-    /* Implements TestListener#testIterationStart(LoopIterationEvent) */
-    public void testIterationStart(LoopIterationEvent event) {
     }
 
     /**
@@ -491,6 +496,7 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
 
         setTitle(DEFAULT_TITLE);
         setIconImage(JMeterUtils.getImage("jmeter.jpg").getImage());// $NON-NLS-1$
+        setWindowTitle(); // define AWT WM_CLASS string 
     }
 
 
@@ -511,7 +517,7 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
 
         // allow for windows / chars in filename
         String temp = fname.replace('\\', '/'); // $NON-NLS-1$ // $NON-NLS-2$
-        String simpleName = temp.substring(temp.lastIndexOf("/") + 1);// $NON-NLS-1$
+        String simpleName = temp.substring(temp.lastIndexOf('/') + 1);// $NON-NLS-1$
         setTitle(simpleName + " (" + fname + ") - " + DEFAULT_TITLE); // $NON-NLS-1$ // $NON-NLS-2$
     }
 
@@ -676,14 +682,17 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
         }
     }
 
+    @Override
     public void dragEnter(DropTargetDragEvent dtde) {
         // NOOP        
     }
 
+    @Override
     public void dragExit(DropTargetEvent dte) {
         // NOOP        
     }
 
+    @Override
     public void dragOver(DropTargetDragEvent dtde) {
         // NOOP
     }
@@ -691,6 +700,7 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
     /**
      * Handler of Top level Dnd
      */
+    @Override
     public void drop(DropTargetDropEvent dtde) {
         try {
             Transferable tr = dtde.getTransferable();
@@ -728,6 +738,7 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
         
     }
 
+    @Override
     public void dropActionChanged(DropTargetDragEvent dtde) {
         // NOOP
     }
@@ -738,11 +749,13 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
     public final class ErrorsAndFatalsCounterLogTarget implements LogTarget, Clearable {
         public AtomicInteger errorOrFatal = new AtomicInteger(0);
 
+        @Override
         public void processEvent(LogEvent event) {
             if(event.getPriority().equals(Priority.ERROR) ||
                     event.getPriority().equals(Priority.FATAL_ERROR)) {
                 final int newValue = errorOrFatal.incrementAndGet();
                 SwingUtilities.invokeLater(new Runnable() {
+                    @Override
                     public void run() {
                         errorsOrFatalsLabel.setText(Integer.toString(newValue));
                     }
@@ -750,9 +763,11 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
             }
         }  
         
+        @Override
         public void clearData() {
             errorOrFatal.set(0);
             SwingUtilities.invokeLater(new Runnable() {
+                @Override
                 public void run() {
                     errorsOrFatalsLabel.setText(Integer.toString(errorOrFatal.get()));
                 }
@@ -761,6 +776,7 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
     }
 
     
+    @Override
     public void clearData() {
         logPanel.clear();
         if(DISPLAY_ERROR_FATAL_COUNTER) {
@@ -771,9 +787,28 @@ public class MainFrame extends JFrame implements TestListener, Remoteable, DropT
     /**
      * Handles click on warnIndicator
      */
+    @Override
     public void actionPerformed(ActionEvent event) {
         if(event.getSource()==warnIndicator) {
             ActionRouter.getInstance().doActionNow(new ActionEvent(event.getSource(), event.getID(), ActionNames.LOGGER_PANEL_ENABLE_DISABLE));
         }
+    }
+
+    /**
+     * Define AWT window title (WM_CLASS string) (useful on Gnome 3 / Linux)
+     */
+    private void setWindowTitle() {
+        Class<?> xtoolkit = Toolkit.getDefaultToolkit().getClass();
+        if (xtoolkit.getName().equals("sun.awt.X11.XToolkit")) { // $NON-NLS-1$
+            try {
+                final Field awtAppClassName = xtoolkit.getDeclaredField("awtAppClassName"); // $NON-NLS-1$
+                awtAppClassName.setAccessible(true);
+                awtAppClassName.set(null, DEFAULT_APP_NAME);
+            } catch (NoSuchFieldException nsfe) {
+                log.warn("Error awt title: " + nsfe); // $NON-NLS-1$
+            } catch (IllegalAccessException iae) {
+                log.warn("Error awt title: " + iae); // $NON-NLS-1$
+            }
+       }
     }
 }

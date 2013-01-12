@@ -19,7 +19,6 @@
 package org.apache.jorphan.util;
 
 import java.io.File;
-import java.io.IOException;
 import java.lang.management.ManagementFactory;
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -126,7 +125,6 @@ public class HeapDumper {
      * <p>
      * @see #dumpHeap(boolean)
      * @return the name of the dump file that was created
-     * @throws IOException
      * @throws Exception if the MXBean cannot be found, or if there is a problem during invocation
      */
     public static String dumpHeap() throws Exception{
@@ -143,7 +141,6 @@ public class HeapDumper {
      * @param live true id only live objects are to be dumped.
      *
      * @return the name of the dump file that was created
-     * @throws IOException
      * @throws Exception if the MXBean cannot be found, or if there is a problem during invocation
      */
     public static String dumpHeap(boolean live) throws Exception {
@@ -161,7 +158,6 @@ public class HeapDumper {
      * @param live true id only live objects are to be dumped.
      *
      * @return the name of the dump file that was created
-     * @throws IOException
      * @throws Exception if the MXBean cannot be found, or if there is a problem during invocation
      */
     public static String dumpHeap(File basedir, boolean live) throws Exception {
@@ -195,13 +191,13 @@ public class HeapDumper {
             if (f instanceof Exception){
                 throw (Exception )f;
             }
-            throw(e);
+            throw e;
         } catch (MBeanException e) {
             Throwable f = e.getCause();
             if (f instanceof Exception){
                 throw (Exception )f;
             }
-            throw(e);
+            throw e;
         }
     }
 }

@@ -22,7 +22,7 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.jmeter.engine.util.CompoundVariable;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
@@ -44,7 +44,7 @@ import org.apache.jmeter.util.JMeterUtils;
  * Note that the commonly used apostrophe escape character (&amp;apos;)
  * is not a legal entity and so is not supported). </p>
  * 
- * @see StringEscapeUtils#escapeHtml(String) (Commons Lang)
+ * @see StringEscapeUtils#escapeHtml4(String) (Commons Lang)
  * @since 2.3.3
  */
 public class EscapeHtml extends AbstractFunction {
@@ -68,7 +68,7 @@ public class EscapeHtml extends AbstractFunction {
             throws InvalidVariableException {
 
         String rawString = ((CompoundVariable) values[0]).execute();
-        return StringEscapeUtils.escapeHtml(rawString);
+        return StringEscapeUtils.escapeHtml4(rawString);
 
     }
 
@@ -86,6 +86,7 @@ public class EscapeHtml extends AbstractFunction {
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<String> getArgumentDesc() {
         return desc;
     }

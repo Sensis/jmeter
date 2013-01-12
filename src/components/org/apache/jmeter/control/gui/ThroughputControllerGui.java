@@ -61,6 +61,7 @@ public class ThroughputControllerGui extends AbstractControllerGui {
         init();
     }
 
+    @Override
     public TestElement createTestElement() {
         ThroughputController tc = new ThroughputController();
         modifyTestElement(tc);
@@ -72,6 +73,7 @@ public class ThroughputControllerGui extends AbstractControllerGui {
      *
      * @see org.apache.jmeter.gui.JMeterGUIComponent#modifyTestElement(TestElement)
      */
+    @Override
     public void modifyTestElement(TestElement tc) {
         configureTestElement(tc);
         ((ThroughputController) tc).setStyle(style);
@@ -81,7 +83,7 @@ public class ThroughputControllerGui extends AbstractControllerGui {
                 ((ThroughputController) tc).setMaxThroughput(Integer.parseInt(throughput.getText().trim()));
             } catch (NumberFormatException e) {
                 // In case we are converting back from floating point, drop the decimal fraction
-                ((ThroughputController) tc).setMaxThroughput((throughput.getText().trim().split("\\.")[0])); // $NON-NLS-1$
+                ((ThroughputController) tc).setMaxThroughput(throughput.getText().trim().split("\\.")[0]); // $NON-NLS-1$
             }
         } else {
             try {
@@ -116,6 +118,7 @@ public class ThroughputControllerGui extends AbstractControllerGui {
         perthread.setSelected(((ThroughputController) el).isPerThread());
     }
 
+    @Override
     public String getLabelResource() {
         return "throughput_control_title"; // $NON-NLS-1$
     }
@@ -130,6 +133,7 @@ public class ThroughputControllerGui extends AbstractControllerGui {
         styleModel.addElement(BYPERCENT_LABEL);
         styleBox = new JComboBox(styleModel);
         styleBox.addActionListener(new ActionListener() {
+            @Override
             public void actionPerformed(ActionEvent e) {
                 if (((String) styleBox.getSelectedItem()).equals(BYNUMBER_LABEL)) {
                     style = ThroughputController.BYNUMBER;
@@ -156,6 +160,7 @@ public class ThroughputControllerGui extends AbstractControllerGui {
         // PERTHREAD FIELD
         perthread = new JCheckBox(PERTHREAD_LABEL, isPerThread);
         perthread.addItemListener(new ItemListener() {
+            @Override
             public void itemStateChanged(ItemEvent event) {
                 if (event.getStateChange() == ItemEvent.SELECTED) {
                     isPerThread = true;

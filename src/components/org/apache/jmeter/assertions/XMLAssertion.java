@@ -25,6 +25,7 @@ import java.io.StringReader;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.AbstractTestElement;
 import org.apache.jorphan.logging.LoggingManager;
+import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
@@ -54,6 +55,7 @@ public class XMLAssertion extends AbstractTestElement implements Serializable, A
      * containing a FailureMessage will be returned. Otherwise the returned
      * AssertionResult will reflect the success of the Sample.
      */
+    @Override
     public AssertionResult getResult(SampleResult response) {
         // no error as default
         AssertionResult result = new AssertionResult(getName());
@@ -89,23 +91,9 @@ public class XMLAssertion extends AbstractTestElement implements Serializable, A
     private byte[] getResultBody(byte[] resultData) {
         for (int i = 0; i < (resultData.length - 1); i++) {
             if (resultData[i] == NEW_LINE && resultData[i + 1] == NEW_LINE) {
-                return getByteArraySlice(resultData, (i + 2), resultData.length - 1);
+                return JOrphanUtils.getByteArraySlice(resultData, (i + 2), resultData.length - 1);
             }
         }
         return resultData;
-    }
-
-    /**
-     * Return a slice of a byte array
-     */
-    private byte[] getByteArraySlice(byte[] array, int begin, int end) {
-        byte[] slice = new byte[(end - begin + 1)];
-        int count = 0;
-        for (int i = begin; i <= end; i++) {
-            slice[count] = array[i];
-            count++;
-        }
-
-        return slice;
     }
 }

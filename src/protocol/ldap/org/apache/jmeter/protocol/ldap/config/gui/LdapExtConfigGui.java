@@ -61,8 +61,8 @@ public class LdapExtConfigGui extends AbstractConfigGui implements ItemListener 
 
     private static final long serialVersionUID = 240L;
 
-    // private final static String ROOTDN = "rootDn";
-    // private final static String TEST = "tesT";
+    // private static final String ROOTDN = "rootDn";
+    // private static final String TEST = "tesT";
     // private static String testValue="NNNN";
 
     private JTextField rootdn = new JTextField(20);
@@ -187,6 +187,7 @@ public class LdapExtConfigGui extends AbstractConfigGui implements ItemListener 
         init();
     }
 
+    @Override
     public String getLabelResource() {
         return "ldapext_sample_title"; // $NON-NLS-1$
     }
@@ -262,6 +263,7 @@ public class LdapExtConfigGui extends AbstractConfigGui implements ItemListener 
     }
 
     /* Implements JMeterGUIComponent.createTestElement() */
+    @Override
     public TestElement createTestElement() {
         ConfigTestElement element = new ConfigTestElement();
         modifyTestElement(element);
@@ -273,6 +275,7 @@ public class LdapExtConfigGui extends AbstractConfigGui implements ItemListener 
      *
      * @see org.apache.jmeter.gui.JMeterGUIComponent#modifyTestElement(TestElement)
      */
+    @Override
     public void modifyTestElement(TestElement element) {
         element.clear();
         configureTestElement(element);
@@ -380,6 +383,7 @@ public class LdapExtConfigGui extends AbstractConfigGui implements ItemListener 
      * This itemStateChanged listener for changing the card layout for based on
      * the test selected in the User defined test case.
      **************************************************************************/
+    @Override
     public void itemStateChanged(ItemEvent ie) {
         CardLayout cl = (CardLayout) (cards.getLayout());
         if (addTest.isSelected()) {

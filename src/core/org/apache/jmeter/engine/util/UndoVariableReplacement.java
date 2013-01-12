@@ -35,6 +35,7 @@ public class UndoVariableReplacement extends AbstractTransformer {
         setVariables(variables);
     }
 
+    @Override
     public JMeterProperty transformValue(JMeterProperty prop) throws InvalidVariableException {
         String input = prop.getStringValue();
         for (Map.Entry<String, String> entry : getVariables().entrySet()) {
@@ -42,7 +43,6 @@ public class UndoVariableReplacement extends AbstractTransformer {
             String value = entry.getValue();
             input = StringUtilities.substitute(input, "${" + key + "}", value);
         }
-        StringProperty newProp = new StringProperty(prop.getName(), input);
-        return newProp;
+        return new StringProperty(prop.getName(), input);
     }
 }

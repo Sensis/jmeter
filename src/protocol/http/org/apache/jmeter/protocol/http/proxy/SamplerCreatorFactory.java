@@ -18,6 +18,7 @@
 
 package org.apache.jmeter.protocol.http.proxy;
 
+import java.io.IOException;
 import java.lang.reflect.Modifier;
 import java.util.HashMap;
 import java.util.List;
@@ -69,14 +70,18 @@ public class SamplerCreatorFactory {
                                 if(log.isDebugEnabled()) {
                                     log.debug("Registering samplerCreator "+commandClass.getName()+" for content type:"+contentType);
                                 }
-                                samplerCreatorMap.put(contentType, creator);
+                                SamplerCreator oldSamplerCreator = samplerCreatorMap.put(contentType, creator);
+                                if(oldSamplerCreator!=null) {
+                                    log.warn("A sampler creator was already registered for:"+contentType+", class:"+oldSamplerCreator.getClass()
+                                            + ", it will be replaced");
+                                }
                             }                        
                     }
                 } catch (Exception e) {
                     log.error("Exception registering "+SamplerCreator.class.getName() + " with implementation:"+strClassName, e);
                 }
             }
-        } catch (Exception e) {
+        } catch (IOException e) {
             log.error("Exception finding implementations of "+SamplerCreator.class, e);
         }
     }

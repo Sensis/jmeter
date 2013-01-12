@@ -38,8 +38,10 @@ import java.util.Random;
 
 import org.apache.commons.collections.ArrayStack;
 import org.apache.jmeter.gui.JMeterFileFilter;
+import org.apache.jmeter.save.CSVSaveService;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
+import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 
 /**
@@ -82,7 +84,8 @@ public class FileServer {
 
     private final Random random = new Random();
 
-	private String scriptName;
+    // volatile needed to ensure safe publication
+	private volatile String scriptName;
 
     // Cannot be instantiated
     private FileServer() {
@@ -101,6 +104,7 @@ public class FileServer {
      * Resets the current base to {@link #DEFAULT_BASE}.
      */
     public synchronized void resetBase() {
+        checkForOpenFiles();
         base = new File(DEFAULT_BASE);
         log.info("Reset base to'"+base+"'");
     }
@@ -114,12 +118,13 @@ public class FileServer {
      * @throws IllegalStateException if files are still open
      */
     public synchronized void setBasedir(String basedir) {
-        checkForOpenFiles();
+        checkForOpenFiles(); // TODO should this be called if basedir == null?
         if (basedir != null) {
-            base = new File(basedir);
-            if (!base.isDirectory()) {
-                base = base.getParentFile();
+            File newBase = new File(basedir);
+            if (!newBase.isDirectory()) {
+                newBase = newBase.getParentFile();
             }
+            base = newBase;
             log.info("Set new base='"+base+"'");
         }
     }
@@ -161,6 +166,8 @@ public class FileServer {
 	/**
 	 * Check if there are entries in use.
 	 * <p>
+	 * Caller must ensure that access to the files map is single-threaded as
+	 * there is a window between checking the files Map and clearing it.
 	 * 
 	 * @throws IllegalStateException if there are any entries still in use
 	 */
@@ -213,7 +220,7 @@ public class FileServer {
      *
      * @param filename - relative (to base) or absolute file name (must not be null)
      */
-    public synchronized void reserveFile(String filename) {
+    public void reserveFile(String filename) {
         reserveFile(filename,null);
     }
 
@@ -224,7 +231,7 @@ public class FileServer {
      * @param filename - relative (to base) or absolute file name (must not be null)
      * @param charsetName - the character set encoding to use for the file (may be null)
      */
-    public synchronized void reserveFile(String filename, String charsetName) {
+    public void reserveFile(String filename, String charsetName) {
         reserveFile(filename, charsetName, filename, false);
     }
 
@@ -236,7 +243,7 @@ public class FileServer {
      * @param charsetName - the character set encoding to use for the file (may be null)
      * @param alias - the name to be used to access the object (must not be null)
      */
-    public synchronized void reserveFile(String filename, String charsetName, String alias) {
+    public void reserveFile(String filename, String charsetName, String alias) {
         reserveFile(filename, charsetName, alias, false);
     }
 
@@ -282,7 +289,7 @@ public class FileServer {
    /**
      * Get the next line of the named file, recycle by default.
      *
-     * @param filename
+     * @param filename the filename or alias that was used to reserve the file
      * @return String containing the next line in the file
      * @throws IOException
      */
@@ -293,7 +300,7 @@ public class FileServer {
     /**
      * Get the next line of the named file, first line is name to false
      *
-     * @param filename
+     * @param filename the filename or alias that was used to reserve the file
      * @param recycle - should file be restarted at EOF?
      * @return String containing the next line in the file (null if EOF reached and not recycle)
      * @throws IOException
@@ -304,7 +311,7 @@ public class FileServer {
    /**
      * Get the next line of the named file.
      *
-     * @param filename
+     * @param filename the filename or alias that was used to reserve the file
      * @param recycle - should file be restarted at EOF?
      * @param firstLineIsNames - 1st line is fields names
      * @return String containing the next line in the file (null if EOF reached and not recycle)
@@ -315,7 +322,7 @@ public class FileServer {
         FileEntry fileEntry = files.get(filename);
         if (fileEntry != null) {
             if (fileEntry.inputOutputObject == null) {
-                fileEntry.inputOutputObject = createBufferedReader(fileEntry, filename);
+                fileEntry.inputOutputObject = createBufferedReader(fileEntry);
             } else if (!(fileEntry.inputOutputObject instanceof Reader)) {
                 throw new IOException("File " + filename + " already in use");
             }
@@ -323,7 +330,7 @@ public class FileServer {
             String line = reader.readLine();
             if (line == null && recycle) {
                 reader.close();
-                reader = createBufferedReader(fileEntry, filename);
+                reader = createBufferedReader(fileEntry);
                 fileEntry.inputOutputObject = reader;
                 if (firstLineIsNames) {
                     // read first line and forget
@@ -337,12 +344,62 @@ public class FileServer {
         throw new IOException("File never reserved: "+filename);
     }
 
-    private BufferedReader createBufferedReader(FileEntry fileEntry, String filename) throws IOException {
+    /**
+     * 
+     * @param alias the file name or alias
+     * @param recycle whether the file should be re-started on EOF
+     * @param firstLineIsNames whether the file contains a file header
+     * @param delim the delimiter to use for parsing
+     * @return the parsed line, will be empty if the file is at EOF
+     */
+    public synchronized String[] getParsedLine(String alias, boolean recycle, boolean firstLineIsNames, char delim) throws IOException {
+        BufferedReader reader = getReader(alias, recycle, firstLineIsNames);
+        return CSVSaveService.csvReadFile(reader, delim);
+    }
+
+    private BufferedReader getReader(String alias, boolean recycle, boolean firstLineIsNames) throws IOException {
+        FileEntry fileEntry = files.get(alias);
+        if (fileEntry != null) {
+            BufferedReader reader;
+            if (fileEntry.inputOutputObject == null) {
+                reader = createBufferedReader(fileEntry);
+                fileEntry.inputOutputObject = reader;
+                if (firstLineIsNames) {
+                    // read first line and forget
+                    reader.readLine();
+                }                
+            } else if (!(fileEntry.inputOutputObject instanceof Reader)) {
+                throw new IOException("File " + alias + " already in use");
+            } else {
+                reader = (BufferedReader) fileEntry.inputOutputObject;
+                if (recycle) { // need to check if we are at EOF already
+                    reader.mark(1);
+                    int peek = reader.read();
+                    if (peek == -1) { // already at EOF
+                        reader.close();
+                        reader = createBufferedReader(fileEntry);
+                        fileEntry.inputOutputObject = reader;
+                        if (firstLineIsNames) {
+                            // read first line and forget
+                            reader.readLine();
+                        }                
+                    } else { // OK, we still have some data, restore it
+                        reader.reset();
+                    }
+                }
+            }
+            return reader;
+        } else {
+            throw new IOException("File never reserved: "+alias);
+        }
+    }
+
+    private BufferedReader createBufferedReader(FileEntry fileEntry) throws IOException {
         FileInputStream fis = new FileInputStream(fileEntry.file);
         InputStreamReader isr = null;
         // If file encoding is specified, read using that encoding, otherwise use default platform encoding
         String charsetName = fileEntry.charSetEncoding;
-        if(charsetName != null && charsetName.trim().length() > 0) {
+        if(!JOrphanUtils.isBlank(charsetName)) {
             isr = new InputStreamReader(fis, charsetName);
         } else {
             isr = new InputStreamReader(fis);
@@ -354,7 +411,7 @@ public class FileServer {
         FileEntry fileEntry = files.get(filename);
         if (fileEntry != null) {
             if (fileEntry.inputOutputObject == null) {
-                fileEntry.inputOutputObject = createBufferedWriter(fileEntry, filename);
+                fileEntry.inputOutputObject = createBufferedWriter(fileEntry);
             } else if (!(fileEntry.inputOutputObject instanceof Writer)) {
                 throw new IOException("File " + filename + " already in use");
             }
@@ -366,12 +423,12 @@ public class FileServer {
         }
     }
 
-    private BufferedWriter createBufferedWriter(FileEntry fileEntry, String filename) throws IOException {
+    private BufferedWriter createBufferedWriter(FileEntry fileEntry) throws IOException {
         FileOutputStream fos = new FileOutputStream(fileEntry.file);
         OutputStreamWriter osw = null;
         // If file encoding is specified, write using that encoding, otherwise use default platform encoding
         String charsetName = fileEntry.charSetEncoding;
-        if(charsetName != null && charsetName.trim().length() > 0) {
+        if(!JOrphanUtils.isBlank(charsetName)) {
             osw = new OutputStreamWriter(fos, charsetName);
         } else {
             osw = new OutputStreamWriter(fos);
@@ -464,6 +521,7 @@ public class FileServer {
 
     /**
      * @return JMX Script name
+     * @since 2.6
      */
 	public String getScriptName() {
 		return scriptName;
@@ -471,6 +529,7 @@ public class FileServer {
 
 	/**
 	 * @param scriptName Script name
+	 * @since 2.6
 	 */
 	public void setScriptName(String scriptName) {
 		this.scriptName = scriptName;

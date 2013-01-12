@@ -33,13 +33,15 @@ import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.URIException;
 import org.apache.commons.httpclient.util.DateParseException;
 import org.apache.commons.httpclient.util.DateUtil;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.http.HttpResponse;
 import org.apache.http.client.methods.HttpRequestBase;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
-import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.samplers.SampleResult;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestIterationListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.property.BooleanProperty;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
@@ -47,7 +49,7 @@ import org.apache.log.Logger;
 /**
  * Handles HTTP Caching
  */
-public class CacheManager extends ConfigTestElement implements TestListener, Serializable {
+public class CacheManager extends ConfigTestElement implements TestStateListener, TestIterationListener, Serializable {
 
     private static final long serialVersionUID = 234L;
 
@@ -64,6 +66,8 @@ public class CacheManager extends ConfigTestElement implements TestListener, Ser
     private transient boolean useExpires; // Cached value
 
     private static final int DEFAULT_MAX_SIZE = 5000;
+
+    private static final long ONE_YEAR_MS = 365*86400*1000;
 
     public CacheManager() {
         setProperty(new BooleanProperty(CLEAR, false));
@@ -109,12 +113,13 @@ public class CacheManager extends ConfigTestElement implements TestListener, Ser
      */
     public void saveDetails(URLConnection conn, SampleResult res){
         if (isCacheable(res)){
-            String lastModified = conn.getHeaderField(HTTPConstantsInterface.LAST_MODIFIED);
-            String expires = conn.getHeaderField(HTTPConstantsInterface.EXPIRES);
-            String etag = conn.getHeaderField(HTTPConstantsInterface.ETAG);
+            String lastModified = conn.getHeaderField(HTTPConstants.LAST_MODIFIED);
+            String expires = conn.getHeaderField(HTTPConstants.EXPIRES);
+            String etag = conn.getHeaderField(HTTPConstants.ETAG);
             String url = conn.getURL().toString();
-            String cacheControl = conn.getHeaderField(HTTPConstantsInterface.CACHE_CONTROL);
-            setCache(lastModified, cacheControl, expires, etag, url);
+            String cacheControl = conn.getHeaderField(HTTPConstants.CACHE_CONTROL);
+            String date = conn.getHeaderField(HTTPConstants.DATE);
+            setCache(lastModified, cacheControl, expires, etag, url, date);
         }
     }
 
@@ -126,12 +131,13 @@ public class CacheManager extends ConfigTestElement implements TestListener, Ser
      */
     public void saveDetails(HttpMethod method, SampleResult res) throws URIException{
         if (isCacheable(res)){
-            String lastModified = getHeader(method ,HTTPConstantsInterface.LAST_MODIFIED);
-            String expires = getHeader(method ,HTTPConstantsInterface.EXPIRES);
-            String etag = getHeader(method ,HTTPConstantsInterface.ETAG);
+            String lastModified = getHeader(method ,HTTPConstants.LAST_MODIFIED);
+            String expires = getHeader(method ,HTTPConstants.EXPIRES);
+            String etag = getHeader(method ,HTTPConstants.ETAG);
             String url = method.getURI().toString();
-            String cacheControl = getHeader(method, HTTPConstantsInterface.CACHE_CONTROL);
-            setCache(lastModified, cacheControl, expires, etag, url);
+            String cacheControl = getHeader(method, HTTPConstants.CACHE_CONTROL);
+            String date = getHeader(method, HTTPConstants.DATE);
+            setCache(lastModified, cacheControl, expires, etag, url, date);
         }
     }
 
@@ -143,31 +149,32 @@ public class CacheManager extends ConfigTestElement implements TestListener, Ser
      */
     public void saveDetails(HttpResponse method, SampleResult res) {
         if (isCacheable(res)){
-            method.getLastHeader(USE_EXPIRES);
-            String lastModified = getHeader(method ,HTTPConstantsInterface.LAST_MODIFIED);
-            String expires = getHeader(method ,HTTPConstantsInterface.EXPIRES);
-            String etag = getHeader(method ,HTTPConstantsInterface.ETAG);
-            String cacheControl = getHeader(method, HTTPConstantsInterface.CACHE_CONTROL);
-            setCache(lastModified, cacheControl, expires, etag, res.getUrlAsString()); // TODO correct URL?
+            String lastModified = getHeader(method ,HTTPConstants.LAST_MODIFIED);
+            String expires = getHeader(method ,HTTPConstants.EXPIRES);
+            String etag = getHeader(method ,HTTPConstants.ETAG);
+            String cacheControl = getHeader(method, HTTPConstants.CACHE_CONTROL);
+            String date = getHeader(method, HTTPConstants.DATE);
+            setCache(lastModified, cacheControl, expires, etag, res.getUrlAsString(), date); // TODO correct URL?
         }
     }
 
     // helper method to save the cache entry
-    private void setCache(String lastModified, String cacheControl, String expires, String etag, String url) {
+    private void setCache(String lastModified, String cacheControl, String expires, String etag, String url, String date) {
         if (log.isDebugEnabled()){
-            log.debug("SET(both) "+url + " " + cacheControl + " " + lastModified + " " + " " + expires + " " + etag);
+            log.debug("setCache("
+                  + lastModified + "," 
+                  + cacheControl + ","
+                  + expires + "," 
+                  + etag + ","
+                  + url + ","
+                  + date
+                  + ")");
         }
         Date expiresDate = null; // i.e. not using Expires
         if (useExpires) {// Check that we are processing Expires/CacheControl
             final String MAX_AGE = "max-age=";
-            // TODO - check for other CacheControl attributes?
-            if (cacheControl != null && cacheControl.contains("public") && cacheControl.contains(MAX_AGE)) {
-                long maxAgeInSecs = Long.parseLong(
-                        cacheControl.substring(cacheControl.indexOf(MAX_AGE)+MAX_AGE.length())
-                            .split("[, ]")[0] // Bug 51932 - allow for optional trailing attributes
-                        );
-                expiresDate=new Date(System.currentTimeMillis()+maxAgeInSecs*1000);
-            } else if (expires != null) {
+            
+            if (expires != null) {
                 try {
                     expiresDate = DateUtil.parseDate(expires);
                 } catch (DateParseException e) {
@@ -176,6 +183,46 @@ public class CacheManager extends ConfigTestElement implements TestListener, Ser
                     }
                     expiresDate = new Date(0L); // invalid dates must be treated as expired
                 }
+            }
+            // if no-cache is present, ensure that expiresDate remains null, which forces revalidation
+            if(cacheControl != null && !cacheControl.contains("no-cache")) {    
+                // the max-age directive overrides the Expires header,
+                if(cacheControl.contains(MAX_AGE)) {
+                    long maxAgeInSecs = Long.parseLong(
+                            cacheControl.substring(cacheControl.indexOf(MAX_AGE)+MAX_AGE.length())
+                                .split("[, ]")[0] // Bug 51932 - allow for optional trailing attributes
+                            );
+                    expiresDate=new Date(System.currentTimeMillis()+maxAgeInSecs*1000);
+
+                } else if(expires==null) { // No max-age && No expires
+                    if(!StringUtils.isEmpty(lastModified) && !StringUtils.isEmpty(date)) {
+                        try {
+                            Date responseDate = DateUtil.parseDate( date );
+                            Date lastModifiedAsDate = DateUtil.parseDate( lastModified );
+                            // see https://developer.mozilla.org/en/HTTP_Caching_FAQ
+                            // see http://www.ietf.org/rfc/rfc2616.txt#13.2.4 
+                            expiresDate=new Date(System.currentTimeMillis()
+                                    +Math.round((responseDate.getTime()-lastModifiedAsDate.getTime())*0.1));
+                        } catch(DateParseException e) {
+                            // date or lastModified may be null or in bad format
+                            if(log.isWarnEnabled()) {
+                                log.warn("Failed computing expiration date with following info:"
+                                    +lastModified + "," 
+                                    + cacheControl + ","
+                                    + expires + "," 
+                                    + etag + ","
+                                    + url + ","
+                                    + date);
+                            }
+                            // TODO Can't see anything in SPEC
+                            expiresDate = new Date(System.currentTimeMillis()+ONE_YEAR_MS);                      
+                        }
+                    } else {
+                        // TODO Can't see anything in SPEC
+                        expiresDate = new Date(System.currentTimeMillis()+ONE_YEAR_MS);                      
+                    }
+                }  
+                // else expiresDate computed in (expires!=null) condition is used
             }
         }
         getCache().put(url, new CacheEntry(lastModified, expiresDate, etag));
@@ -219,11 +266,11 @@ public class CacheManager extends ConfigTestElement implements TestListener, Ser
         if (entry != null){
             final String lastModified = entry.getLastModified();
             if (lastModified != null){
-                method.setRequestHeader(HTTPConstantsInterface.IF_MODIFIED_SINCE, lastModified);
+                method.setRequestHeader(HTTPConstants.IF_MODIFIED_SINCE, lastModified);
             }
             final String etag = entry.getEtag();
             if (etag != null){
-                method.setRequestHeader(HTTPConstantsInterface.IF_NONE_MATCH, etag);
+                method.setRequestHeader(HTTPConstants.IF_NONE_MATCH, etag);
             }
         }
     }
@@ -244,11 +291,11 @@ public class CacheManager extends ConfigTestElement implements TestListener, Ser
         if (entry != null){
             final String lastModified = entry.getLastModified();
             if (lastModified != null){
-                request.setHeader(HTTPConstantsInterface.IF_MODIFIED_SINCE, lastModified);
+                request.setHeader(HTTPConstants.IF_MODIFIED_SINCE, lastModified);
             }
             final String etag = entry.getEtag();
             if (etag != null){
-                request.setHeader(HTTPConstantsInterface.IF_NONE_MATCH, etag);
+                request.setHeader(HTTPConstants.IF_NONE_MATCH, etag);
             }
         }
     }
@@ -268,11 +315,11 @@ public class CacheManager extends ConfigTestElement implements TestListener, Ser
         if (entry != null){
             final String lastModified = entry.getLastModified();
             if (lastModified != null){
-                conn.addRequestProperty(HTTPConstantsInterface.IF_MODIFIED_SINCE, lastModified);
+                conn.addRequestProperty(HTTPConstants.IF_MODIFIED_SINCE, lastModified);
             }
             final String etag = entry.getEtag();
             if (etag != null){
-                conn.addRequestProperty(HTTPConstantsInterface.IF_NONE_MATCH, etag);
+                conn.addRequestProperty(HTTPConstants.IF_NONE_MATCH, etag);
             }
         }
     }
@@ -358,18 +405,23 @@ public class CacheManager extends ConfigTestElement implements TestListener, Ser
         };
     }
 
+    @Override
     public void testStarted() {
     }
 
+    @Override
     public void testEnded() {
     }
 
+    @Override
     public void testStarted(String host) {
     }
 
+    @Override
     public void testEnded(String host) {
     }
 
+    @Override
     public void testIterationStart(LoopIterationEvent event) {
         if (getClearEachIteration()) {
             clearCache();

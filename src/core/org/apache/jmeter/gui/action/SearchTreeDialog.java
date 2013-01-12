@@ -28,16 +28,23 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Set;
 
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
+import javax.swing.InputMap;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JRootPane;
+import javax.swing.JTree;
+import javax.swing.tree.TreePath;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.gui.Searchable;
 import org.apache.jmeter.gui.tree.JMeterTreeModel;
@@ -49,7 +56,7 @@ import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
 
 /**
- * 
+ * FIXME Why is searchTF not getting focus correctly after having been setVisible(false) once
  */
 public class SearchTreeDialog extends JDialog implements ActionListener {
     /**
@@ -57,7 +64,7 @@ public class SearchTreeDialog extends JDialog implements ActionListener {
 	 */
 	private static final long serialVersionUID = -4436834972710248247L;
 
-	private Logger logger = LoggingManager.getLoggerForClass();
+	private static final Logger logger = LoggingManager.getLoggerForClass();
 
     private JButton searchButton;
     
@@ -74,27 +81,48 @@ public class SearchTreeDialog extends JDialog implements ActionListener {
 	 */
 	private transient String lastSearch = null;
 
-	/**
-	 * Hide Window on ESC
-	 */
-	private transient ActionListener enterActionListener = new ActionListener() {
-		public void actionPerformed(ActionEvent actionEvent) {
-			doSearch(actionEvent);
-		}	
-	};
-	
-	/**
-	 * Do search on Enter
-	 */
-	private transient ActionListener escapeActionListener = new ActionListener() {
-		public void actionPerformed(ActionEvent actionEvent) {
-			setVisible(false);
-		}	
-	};
+    private JButton searchAndExpandButton;
 	
 	public SearchTreeDialog() {
         super((JFrame) null, JMeterUtils.getResString("search_tree_title"), true); //$NON-NLS-1$
         init();
+    }
+	
+    @Override
+    protected JRootPane createRootPane() {
+        JRootPane rootPane = new JRootPane();
+        // Hide Window on ESC
+        Action escapeAction = new AbstractAction("ESCAPE") { 
+            /**
+             * 
+             */
+            private static final long serialVersionUID = -6543764044868772971L;
+
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) { 
+                setVisible(false);
+            } 
+        };
+        // Do search on Enter
+        Action enterAction = new AbstractAction("ENTER") { 
+            /**
+             * 
+             */
+            private static final long serialVersionUID = -3661361497864527363L;
+
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) { 
+                doSearch(actionEvent);
+            } 
+        };
+        ActionMap actionMap = rootPane.getActionMap();
+        actionMap.put(escapeAction.getValue(Action.NAME), escapeAction);
+        actionMap.put(enterAction.getValue(Action.NAME), enterAction);
+        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);  
+        inputMap.put(KeyStrokes.ESC, escapeAction.getValue(Action.NAME));
+        inputMap.put(KeyStrokes.ENTER, enterAction.getValue(Action.NAME));
+
+        return rootPane;
     }
 
     private void init() {
@@ -123,14 +151,15 @@ public class SearchTreeDialog extends JDialog implements ActionListener {
         
         searchButton = new JButton(JMeterUtils.getResString("search")); //$NON-NLS-1$
         searchButton.addActionListener(this);
+        searchAndExpandButton = new JButton(JMeterUtils.getResString("search_expand")); //$NON-NLS-1$
+        searchAndExpandButton.addActionListener(this);
         cancelButton = new JButton(JMeterUtils.getResString("cancel")); //$NON-NLS-1$
         cancelButton.addActionListener(this);
         buttonsPanel.add(searchButton);
+        buttonsPanel.add(searchAndExpandButton);
         buttonsPanel.add(cancelButton);
         searchPanel.add(buttonsPanel, BorderLayout.SOUTH);
         this.getContentPane().add(searchPanel);
-        searchPanel.registerKeyboardAction(enterActionListener, KeyStrokes.ENTER, JComponent.WHEN_IN_FOCUSED_WINDOW);
-        searchPanel.registerKeyboardAction(escapeActionListener, KeyStrokes.ESC, JComponent.WHEN_IN_FOCUSED_WINDOW);
     	searchTF.requestFocusInWindow();
 
         this.pack();
@@ -141,8 +170,10 @@ public class SearchTreeDialog extends JDialog implements ActionListener {
      * Do search
      * @param e {@link ActionEvent}
      */
+    @Override
     public void actionPerformed(ActionEvent e) {
     	if(e.getSource()==cancelButton) {
+    	    searchTF.requestFocusInWindow();
     		this.setVisible(false);
     		return;
     	} 
@@ -153,6 +184,7 @@ public class SearchTreeDialog extends JDialog implements ActionListener {
 	 * @param e {@link ActionEvent}
 	 */
 	private void doSearch(ActionEvent e) {
+	    boolean expand = e.getSource()==searchAndExpandButton;
 		String wordToSearch = searchTF.getText();
     	if(StringUtils.isEmpty(wordToSearch)) {
             return;
@@ -187,11 +219,18 @@ public class SearchTreeDialog extends JDialog implements ActionListener {
                 logger.error("Error occured searching for word:"+ wordToSearch, ex);
             }
         }
+        GuiPackage guiInstance = GuiPackage.getInstance();
+        JTree jTree = guiInstance.getMainFrame().getTree();
+        
         for (Iterator<JMeterTreeNode> iterator = nodes.iterator(); iterator.hasNext();) {
             JMeterTreeNode jMeterTreeNode = iterator.next();
             jMeterTreeNode.setMarkedBySearch(true);
+            if (expand) {
+                jTree.expandPath(new TreePath(jMeterTreeNode.getPath()));
+            }
         }
         GuiPackage.getInstance().getMainFrame().repaint();
+        searchTF.requestFocusInWindow();
         this.setVisible(false);
 	}
 }

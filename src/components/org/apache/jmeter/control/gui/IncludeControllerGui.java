@@ -35,7 +35,7 @@ public class IncludeControllerGui extends AbstractControllerGui
 
     private static final long serialVersionUID = 240L;
 
-    private FilePanel includePanel =
+    private final FilePanel includePanel =
         new FilePanel(JMeterUtils.getResString("include_path"), ".jmx"); //$NON-NLS-1$ //$NON-NLS-2$
 
     /**
@@ -45,6 +45,7 @@ public class IncludeControllerGui extends AbstractControllerGui
         init();
     }
 
+    @Override
     public String getLabelResource() {
         return "include_controller";//$NON-NLS-1$
     }
@@ -62,6 +63,7 @@ public class IncludeControllerGui extends AbstractControllerGui
     /**
      * {@inheritDoc}
      */
+    @Override
     public TestElement createTestElement() {
         IncludeController mc = new IncludeController();
         configureTestElement(mc);
@@ -71,6 +73,7 @@ public class IncludeControllerGui extends AbstractControllerGui
     /**
      * {@inheritDoc}
      */
+    @Override
     public void modifyTestElement(TestElement element) {
         configureTestElement(element);
         IncludeController controller = (IncludeController)element;

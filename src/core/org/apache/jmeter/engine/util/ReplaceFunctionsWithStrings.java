@@ -52,7 +52,7 @@ public class ReplaceFunctionsWithStrings extends AbstractTransformer {
 
     private static final String FUNCTION_REF_SUFFIX = "}"; //$NON-NLS-1$
 
-    private boolean regexMatch;// Should we match using regexes?
+    private final boolean regexMatch;// Should we match using regexes?
 
     public ReplaceFunctionsWithStrings(CompoundVariable masterFunction, Map<String, String> variables) {
         this(masterFunction, variables, false);
@@ -65,6 +65,7 @@ public class ReplaceFunctionsWithStrings extends AbstractTransformer {
         this.regexMatch = regexMatch;
     }
 
+    @Override
     public JMeterProperty transformValue(JMeterProperty prop) throws InvalidVariableException {
         PatternMatcher pm = JMeterUtils.getMatcher();
         Pattern pattern = null;
@@ -89,7 +90,6 @@ public class ReplaceFunctionsWithStrings extends AbstractTransformer {
                 input = StringUtilities.substitute(input, value, FUNCTION_REF_PREFIX + key + FUNCTION_REF_SUFFIX);
             }
         }
-        StringProperty newProp = new StringProperty(prop.getName(), input);
-        return newProp;
+        return new StringProperty(prop.getName(), input);
     }
 }

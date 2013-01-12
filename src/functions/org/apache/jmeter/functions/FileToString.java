@@ -101,8 +101,8 @@ public class FileToString extends AbstractFunction {
         try {
             myValue = FileUtils.readFileToString(new File(fileName), encoding);
         } catch (IOException e) {
-            log.warn("Could not read file: "+fileName+" "+e.getMessage());
-            throw new JMeterStopThreadException("End of sequence");
+            log.warn("Could not read file: "+fileName+" "+e.getMessage(), e);
+            throw new JMeterStopThreadException("End of sequence", e);
         }
 
         if (myName.length() > 0) {
@@ -136,6 +136,7 @@ public class FileToString extends AbstractFunction {
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<String> getArgumentDesc() {
         return desc;
     }

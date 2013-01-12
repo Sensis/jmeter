@@ -21,7 +21,7 @@ package org.apache.jmeter.config;
 import java.text.DecimalFormat;
 import java.util.Random;
 
-import org.apache.commons.lang.math.NumberUtils;
+import org.apache.commons.lang3.math.NumberUtils;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
 import org.apache.jmeter.engine.util.NoConfigMerge;
@@ -38,6 +38,11 @@ public class RandomVariableConfig extends ConfigTestElement
     private static final Logger log = LoggingManager.getLoggerForClass();
 
     private static final long serialVersionUID = 233L;
+
+    /*
+     *  N.B. this class is shared between threads (NoThreadClone) so all access to variables
+     *  needs to be protected by a lock (either sync. or volatile) to ensure safe publication.
+     */
 
     private String minimumValue;
 
@@ -98,6 +103,7 @@ public class RandomVariableConfig extends ConfigTestElement
     }
 
     /** {@inheritDoc} */
+    @Override
     public void iterationStart(LoopIterationEvent iterEvent) {
         Random randGen=null;
         if (getPerThread()){

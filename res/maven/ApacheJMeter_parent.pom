@@ -64,7 +64,7 @@ under the License.
       <commons-io.version>2.2</commons-io.version>
       <commons-jexl.version>1.1</commons-jexl.version>
       <commons-jexl2.version>2.1.1</commons-jexl2.version>
-      <commons-lang.version>2.6</commons-lang.version>
+      <commons-lang3.version>3.1</commons-lang3.version>
       <commons-logging.version>1.1.1</commons-logging.version>
       <commons-net.version>3.1</commons-net.version>
       <excalibur-datasource.version>1.1.1</excalibur-datasource.version>
@@ -72,14 +72,17 @@ under the License.
       <excalibur-logger.version>1.1</excalibur-logger.version>
       <excalibur-pool.version>1.2</excalibur-pool.version>
       <htmlparser.version>2.1</htmlparser.version>
-      <httpclient.version>4.2</httpclient.version>
-      <httpcore.version>4.2.1</httpcore.version>
+      <httpclient.version>4.2.2</httpclient.version>
+      <httpcore.version>4.2.2</httpcore.version>
       <jakarta-oro.version>2.0.8</jakarta-oro.version>
       <jcharts.version>0.7.5</jcharts.version>
       <jdom.version>1.1.2</jdom.version>
-      <js_rhino.version>1.7R3</js_rhino.version>
+      <jodd.version>3.4.0</jodd.version>
+      <jsoup.version>1.7.1</jsoup.version>
+      <js_rhino.version>1.7R4</js_rhino.version>
       <junit.version>4.10</junit.version>
       <logkit.version>2.0</logkit.version>
+      <slf4j.version>1.7.2</slf4j.version>
       <soap.version>2.3.1</soap.version>
       <tidy.version>r938</tidy.version>
       <xmlpull.version>1.1.3.1</xmlpull.version>
@@ -101,11 +104,6 @@ under the License.
         <groupId>bsf</groupId>
         <artifactId>bsf</artifactId>
         <version>${apache-bsf.version}</version>
-      </dependency>
-      <dependency>
-        <groupId>org.apache.bsf</groupId>
-        <artifactId>bsf-api</artifactId>
-        <version>${apache-jsr223-api.version}</version>
       </dependency>
       <dependency>
         <groupId>avalon-framework</groupId>
@@ -158,9 +156,9 @@ under the License.
         <version>${commons-jexl2.version}</version>
       </dependency>
       <dependency>
-        <groupId>commons-lang</groupId>
-        <artifactId>commons-lang</artifactId>
-        <version>${commons-lang.version}</version>
+        <groupId>org.apache.commons</groupId>
+        <artifactId>commons-lang3</artifactId>
+        <version>${commons-lang3.version}</version>
       </dependency>
       <dependency>
         <groupId>commons-logging</groupId>
@@ -319,6 +317,26 @@ under the License.
         <artifactId>geronimo-jms_1.1_spec</artifactId>
         <version>${jms.version}</version>
       </dependency>
+      <dependency>
+        <groupId>org.jsoup</groupId>
+        <artifactId>jsoup</artifactId>
+        <version>${jsoup.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jodd</groupId>
+        <artifactId>jodd-core</artifactId>
+        <version>${jodd.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.jodd</groupId>
+        <artifactId>jodd-lagarto</artifactId>
+        <version>${jodd.version}</version>
+      </dependency>
+      <dependency>
+        <groupId>org.slf4j</groupId>
+        <artifactId>slf4j-api</artifactId>
+        <version>${slf4j.version}</version>
+      </dependency>
       <!-- Docs only; not needed for source or binary archives 
       <dependency>
         <groupId>org.apache.velocity</groupId>
@@ -329,11 +347,6 @@ under the License.
     </dependencies>
 
     <repositories>
-        <repository>
-            <!-- Required for jCharts 0.7.5 -->
-            <id>MVN Search</id>
-            <url>http://www.mvnsearch.org/maven2</url>
-        </repository>
         <repository>
             <!--Required for bsh 2.0b5 -->
             <id>JBoss</id>

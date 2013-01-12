@@ -25,6 +25,7 @@ import java.net.URL;
 import java.net.URLConnection;
 
 import org.apache.commons.io.IOUtils;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 
 /**
  * HTTP Sampler which can read from file: URLs
@@ -35,6 +36,7 @@ public class HTTPFileImpl extends HTTPAbstractImpl {
         super(base);
     }
 
+    @Override
     public boolean interrupt() {
         return false;
     }
@@ -44,7 +46,7 @@ public class HTTPFileImpl extends HTTPAbstractImpl {
             boolean areFollowingRedirect, int frameDepth) {
 
         HTTPSampleResult res = new HTTPSampleResult();
-        res.setHTTPMethod(GET); // Dummy
+        res.setHTTPMethod(HTTPConstants.GET); // Dummy
         res.setURL(url);
         res.setSampleLabel(url.toString());
         InputStream is = null;

@@ -26,6 +26,8 @@ import org.apache.jmeter.protocol.java.sampler.AbstractJavaSamplerClient;
 import org.apache.jmeter.protocol.java.sampler.JavaSamplerContext;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.TestElement;
+import org.apache.jorphan.logging.LoggingManager;
+import org.apache.log.Logger;
 
 /**
  * The <code>JavaTest</code> class is a simple sampler which is intended for
@@ -65,6 +67,9 @@ import org.apache.jmeter.testelement.TestElement;
  */
 
 public class JavaTest extends AbstractJavaSamplerClient implements Serializable {
+
+    private static final Logger LOG = LoggingManager.getLoggerForClass();
+
     private static final long serialVersionUID = 240L;
 
     /** The base number of milliseconds to sleep during each sample. */
@@ -151,7 +156,7 @@ public class JavaTest extends AbstractJavaSamplerClient implements Serializable 
      * of the client class.
      */
     public JavaTest() {
-        getLogger().debug(whoAmI() + "\tConstruct");
+        LOG.debug(whoAmI() + "\tConstruct");
     }
 
     /*
@@ -190,8 +195,10 @@ public class JavaTest extends AbstractJavaSamplerClient implements Serializable 
      */
     @Override
     public void setupTest(JavaSamplerContext context) {
-        getLogger().debug(whoAmI() + "\tsetupTest()");
-        listParameters(context);
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(whoAmI() + "\tsetupTest()");
+            listParameters(context);
+        }
     }
 
     /**
@@ -258,6 +265,7 @@ public class JavaTest extends AbstractJavaSamplerClient implements Serializable 
      *
      * @return a SampleResult giving the results of this sample.
      */
+    @Override
     public SampleResult runTest(JavaSamplerContext context) {
         setupValues(context);
 
@@ -295,18 +303,18 @@ public class JavaTest extends AbstractJavaSamplerClient implements Serializable 
             }
             results.setSuccessful(success);
         } catch (InterruptedException e) {
-            getLogger().warn("JavaTest: interrupted.");
+            LOG.warn("JavaTest: interrupted.");
             results.setSuccessful(true);
         } catch (Exception e) {
-            getLogger().error("JavaTest: error during sample", e);
+            LOG.error("JavaTest: error during sample", e);
             results.setSuccessful(false);
         } finally {
             // Record end time and populate the results.
             results.sampleEnd();
         }
 
-        if (getLogger().isDebugEnabled()) {
-            getLogger().debug(whoAmI() + "\trunTest()" + "\tTime:\t" + results.getTime());
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(whoAmI() + "\trunTest()" + "\tTime:\t" + results.getTime());
             listParameters(context);
         }
 
@@ -314,32 +322,17 @@ public class JavaTest extends AbstractJavaSamplerClient implements Serializable 
     }
 
     /**
-     * Do any clean-up required by this test. In this case no clean-up is
-     * necessary, but some messages are logged for debugging purposes.
-     *
-     * @param context
-     *            the context to run with. This provides access to
-     *            initialization parameters.
-     */
-    @Override
-    public void teardownTest(JavaSamplerContext context) {
-        getLogger().debug(whoAmI() + "\tteardownTest()");
-        listParameters(context);
-    }
-
-    /**
      * Dump a list of the parameters in this context to the debug log.
+     * Should only be called if debug is enabled.
      *
      * @param context
      *            the context which contains the initialization parameters.
      */
     private void listParameters(JavaSamplerContext context) {
-        if (getLogger().isDebugEnabled()) {
-            Iterator<String> argsIt = context.getParameterNamesIterator();
-            while (argsIt.hasNext()) {
-                String name = argsIt.next();
-                getLogger().debug(name + "=" + context.getParameter(name));
-            }
+        Iterator<String> argsIt = context.getParameterNamesIterator();
+        while (argsIt.hasNext()) {
+            String name = argsIt.next();
+            LOG.debug(name + "=" + context.getParameter(name));
         }
     }
 

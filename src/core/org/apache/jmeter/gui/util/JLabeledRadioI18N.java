@@ -78,7 +78,7 @@ public class JLabeledRadioI18N extends JPanel implements JLabeledField, ActionLi
      * the ButtonGroup.
      *
      * The resource name is used as the action command for the button model,
-     * and the reource value is used to set the button label.
+     * and the resource value is used to set the button label.
      *
      * @param resouces list of resource names
      * @param selected initially selected resource (if not null)
@@ -86,6 +86,21 @@ public class JLabeledRadioI18N extends JPanel implements JLabeledField, ActionLi
      */
     private void init(String[] resouces, String selected) {
         this.add(mLabel);
+        initButtonGroup(resouces, selected);
+    }
+
+    /**
+     * Method is responsible for creating the JRadioButtons and adding them to
+     * the ButtonGroup.
+     *
+     * The resource name is used as the action command for the button model,
+     * and the resource value is used to set the button label.
+     *
+     * @param resouces list of resource names
+     * @param selected initially selected resource (if not null)
+     *
+     */
+    private void initButtonGroup(String[] resouces, String selected) {
         for (int idx = 0; idx < resouces.length; idx++) {
             JRadioButton btn = new JRadioButton(JMeterUtils.getResString(resouces[idx]));
             btn.setActionCommand(resouces[idx]);
@@ -99,11 +114,42 @@ public class JLabeledRadioI18N extends JPanel implements JLabeledField, ActionLi
             }
         }
     }
+    
+    /**
+     * Method is responsible for removing current JRadioButtons of ButtonGroup and
+     * add creating the JRadioButtons and adding them to
+     * the ButtonGroup.
+     *
+     * The resource name is used as the action command for the button model,
+     * and the resource value is used to set the button label.
+     *
+     * @param resouces list of resource names
+     * @param selected initially selected resource (if not null)
+     *
+     */
+    public void resetButtons(String[] resouces, String selected) {
+        Enumeration<AbstractButton> buttons = bGroup.getElements();
+        List<AbstractButton> buttonsToRemove = new ArrayList<AbstractButton>(this.bGroup.getButtonCount());
+        while (buttons.hasMoreElements()) {
+            AbstractButton abstractButton = buttons
+                    .nextElement();
+            buttonsToRemove.add(abstractButton);
+        }
+        for (AbstractButton abstractButton : buttonsToRemove) {
+            abstractButton.removeActionListener(this);
+            bGroup.remove(abstractButton);
+        }
+        for (AbstractButton abstractButton : buttonsToRemove) {
+            this.remove(abstractButton);
+        }
+        initButtonGroup(resouces, selected);
+    }
 
     /**
      * The implementation will get the resource name from the selected radio button
      * in the JButtonGroup.
      */
+    @Override
     public String getText() {
         return this.bGroup.getSelection().getActionCommand();
     }
@@ -114,6 +160,7 @@ public class JLabeledRadioI18N extends JPanel implements JLabeledField, ActionLi
      * not selected.
      * @param resourcename name of resource whose button is to be selected
      */
+    @Override
     public void setText(String resourcename) {
         Enumeration<AbstractButton> en = this.bGroup.getElements();
         while (en.hasMoreElements()) {
@@ -131,11 +178,13 @@ public class JLabeledRadioI18N extends JPanel implements JLabeledField, ActionLi
      *
      * @param label_resource
      */
+    @Override
     public final void setLabel(String label_resource) {
         this.mLabel.setText(JMeterUtils.getResString(label_resource));
     }
 
     /** {@inheritDoc} */
+    @Override
     public void addChangeListener(ChangeListener pChangeListener) {
         this.mChangeListeners.add(pChangeListener);
     }
@@ -155,6 +204,7 @@ public class JLabeledRadioI18N extends JPanel implements JLabeledField, ActionLi
      * Method will return all the label and JRadioButtons. ButtonGroup is
      * excluded from the list.
      */
+    @Override
     public List<JComponent> getComponentList() {
         List<JComponent> comps = new LinkedList<JComponent>();
         comps.add(mLabel);
@@ -168,6 +218,7 @@ public class JLabeledRadioI18N extends JPanel implements JLabeledField, ActionLi
     /**
      * When a radio button is clicked, an ActionEvent is triggered.
      */
+    @Override
     public void actionPerformed(ActionEvent e) {
         this.notifyChangeListeners();
     }

@@ -23,7 +23,7 @@ import java.io.Serializable;
 import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.event.LoopIterationListener;
 import org.apache.jmeter.samplers.Sampler;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.property.BooleanProperty;
 import org.apache.jmeter.testelement.property.FloatProperty;
 import org.apache.jmeter.testelement.property.IntegerProperty;
@@ -42,7 +42,7 @@ import org.apache.log.Logger;
  * or the last N% of samples (BYPERCENT).
  */
 public class ThroughputController extends GenericController implements Serializable, LoopIterationListener,
-        TestListener {
+        TestStateListener {
 
     private static final long serialVersionUID = 233L;
 
@@ -136,7 +136,7 @@ public class ThroughputController extends GenericController implements Serializa
         JMeterProperty prop = getProperty(MAXTHROUGHPUT);
         int retVal = 1;
         if (prop instanceof IntegerProperty) {
-            retVal = (((IntegerProperty) prop).getIntValue());
+            retVal = ((IntegerProperty) prop).getIntValue();
         } else {
             try {
                 retVal = Integer.parseInt(prop.getStringValue());
@@ -163,7 +163,7 @@ public class ThroughputController extends GenericController implements Serializa
         JMeterProperty prop = getProperty(PERCENTTHROUGHPUT);
         float retVal = 100;
         if (prop instanceof FloatProperty) {
-            retVal = (((FloatProperty) prop).getFloatValue());
+            retVal = ((FloatProperty) prop).getFloatValue();
         } else {
             try {
                 retVal = Float.parseFloat(prop.getStringValue());
@@ -232,6 +232,7 @@ public class ThroughputController extends GenericController implements Serializa
         return clone;
     }
 
+    @Override
     public void iterationStart(LoopIterationEvent iterEvent) {
         if (!isPerThread()) {
             synchronized (counterLock) {
@@ -250,6 +251,7 @@ public class ThroughputController extends GenericController implements Serializa
         }
     }
 
+    @Override
     public void testStarted() {
         synchronized (counterLock) {
             globalNumExecutions = new MutableInteger(0);
@@ -257,19 +259,19 @@ public class ThroughputController extends GenericController implements Serializa
         }
     }
 
+    @Override
     public void testStarted(String host) {
         testStarted();
     }
 
+    @Override
     public void testEnded() {
     	// NOOP
     }
 
+    @Override
     public void testEnded(String host) {
     	// NOOP
     }
 
-    public void testIterationStart(LoopIterationEvent event) {
-    	// NOOP
-    }
 }

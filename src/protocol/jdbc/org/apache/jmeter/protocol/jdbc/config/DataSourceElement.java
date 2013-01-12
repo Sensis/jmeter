@@ -31,18 +31,18 @@ import org.apache.avalon.framework.configuration.ConfigurationException;
 import org.apache.avalon.framework.configuration.DefaultConfiguration;
 import org.apache.avalon.framework.logger.LogKitLogger;
 import org.apache.jmeter.config.ConfigElement;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testbeans.TestBeanHelper;
 import org.apache.jmeter.testelement.AbstractTestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.jorphan.logging.LoggingManager;
+import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 
 public class DataSourceElement extends AbstractTestElement
-    implements ConfigElement, TestListener, TestBean
+    implements ConfigElement, TestStateListener, TestBean
     {
     private static final Logger log = LoggingManager.getLoggerForClass();
 
@@ -66,6 +66,7 @@ public class DataSourceElement extends AbstractTestElement
     public DataSourceElement() {
     }
 
+    @Override
     public void testEnded() {
         synchronized (this) {
             if (excaliburSource != null) {
@@ -82,20 +83,21 @@ public class DataSourceElement extends AbstractTestElement
         }
     }
 
+    @Override
     public void testEnded(String host) {
         testEnded();
     }
 
-    public void testIterationStart(LoopIterationEvent event) {
-    }
-
+    @Override
     @SuppressWarnings("deprecation") // call to TestBeanHelper.prepare() is intentional
     public void testStarted() {
         this.setRunningVersion(true);
         TestBeanHelper.prepare(this);
         JMeterVariables variables = getThreadContext().getVariables();
         String poolName = getDataSource();
-        if (variables.getObject(poolName) != null) {
+        if(JOrphanUtils.isBlank(poolName)) {
+            throw new IllegalArgumentException("Variable Name must not be empty for element:"+getName());
+        } else if (variables.getObject(poolName) != null) {
             log.error("JDBC data source already defined for: "+poolName);
         } else {
             String maxPool = getPoolMax();
@@ -112,6 +114,7 @@ public class DataSourceElement extends AbstractTestElement
         }
     }
 
+    @Override
     public void testStarted(String host) {
         testStarted();
     }
@@ -119,8 +122,10 @@ public class DataSourceElement extends AbstractTestElement
     @Override
     public Object clone() {
         DataSourceElement el = (DataSourceElement) super.clone();
-        el.excaliburSource = excaliburSource;
-        el.perThreadPoolSet = perThreadPoolSet;
+        synchronized (this) {
+            el.excaliburSource = excaliburSource;
+            el.perThreadPoolSet = perThreadPoolSet;            
+        }
         return el;
     }
 
@@ -131,12 +136,21 @@ public class DataSourceElement extends AbstractTestElement
      * - allows the pool storage mechanism to be changed if necessary
      */
     public static Connection getConnection(String poolName) throws SQLException{
-        DataSourceComponent pool = (DataSourceComponent)
-            JMeterContextService.getContext().getVariables().getObject(poolName);
-        if (pool == null) {
-            throw new SQLException("No pool found named: '" + poolName + "'");
+        Object poolObject = 
+                JMeterContextService.getContext().getVariables().getObject(poolName);
+        if (poolObject == null) {
+            throw new SQLException("No pool found named: '" + poolName + "', ensure Variable Name matches Variable Name of JDBC Connection Configuration");
+        } else {
+            if(poolObject instanceof DataSourceComponent) {
+                DataSourceComponent pool = (DataSourceComponent) poolObject;
+                return pool.getConnection();    
+            } else {
+                String errorMsg = "Found object stored under variable:'"+poolName
+                        +"' with class:"+poolObject.getClass().getName()+" and value: '"+poolObject+" but it's not a DataSourceComponent, check you're not already using this name as another variable";
+                log.error(errorMsg);
+                throw new SQLException(errorMsg); 
+            }
         }
-        return pool.getConnection();
     }
 
     /*
@@ -252,6 +266,7 @@ public class DataSourceElement extends AbstractTestElement
             sharedDSC=p_dsc;
         }
 
+        @Override
         public Connection getConnection() throws SQLException {
             Connection conn = null;
             ResourceLimitingJdbcDataSource dsc = null;
@@ -285,14 +300,17 @@ public class DataSourceElement extends AbstractTestElement
             return conn;
         }
 
+        @Override
         public void configure(Configuration arg0) throws ConfigurationException {
         }
 
     }
 
+    @Override
     public void addConfigElement(ConfigElement config) {
     }
 
+    @Override
     public boolean expectsModification() {
         return false;
     }

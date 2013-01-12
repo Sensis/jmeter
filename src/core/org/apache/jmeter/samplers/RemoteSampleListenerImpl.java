@@ -21,19 +21,18 @@ package org.apache.jmeter.samplers;
 import java.rmi.RemoteException;
 import java.util.List;
 
-import org.apache.jmeter.engine.event.LoopIterationEvent;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.util.JMeterUtils;
 
 /**
- * Implementation of remote sampler listener, also supports TestListener
+ * Implementation of remote sampler listener, also supports TestStateListener
  */
 public class RemoteSampleListenerImpl extends java.rmi.server.UnicastRemoteObject 
-    implements RemoteSampleListener, SampleListener, TestListener {
+    implements RemoteSampleListener, SampleListener, TestStateListener {
 
     private static final long serialVersionUID = 240L;
 
-    private final TestListener testListener;
+    private final TestStateListener testListener;
 
     private final SampleListener sampleListener;
     
@@ -42,8 +41,8 @@ public class RemoteSampleListenerImpl extends java.rmi.server.UnicastRemoteObjec
 
     public RemoteSampleListenerImpl(Object listener) throws RemoteException {
         super(DEFAULT_LOCAL_PORT);
-        if (listener instanceof TestListener) {
-            testListener = (TestListener) listener;
+        if (listener instanceof TestStateListener) {
+            testListener = (TestStateListener) listener;
         } else {
             testListener = null;
         }
@@ -54,33 +53,31 @@ public class RemoteSampleListenerImpl extends java.rmi.server.UnicastRemoteObjec
         }
     }
 
+    @Override
     public void testStarted() {
         if (testListener != null) {
             testListener.testStarted();
         }
     }
 
+    @Override
     public void testStarted(String host) {
         if (testListener != null) {
             testListener.testStarted(host);
         }
     }
 
+    @Override
     public void testEnded() {
         if (testListener != null) {
             testListener.testEnded();
         }
     }
 
+    @Override
     public void testEnded(String host) {
         if (testListener != null) {
             testListener.testEnded(host);
-        }
-    }
-
-    public void testIterationStart(LoopIterationEvent event) {
-        if (testListener != null) {
-            testListener.testIterationStart(event);
         }
     }
 
@@ -92,6 +89,7 @@ public class RemoteSampleListenerImpl extends java.rmi.server.UnicastRemoteObjec
      * @param samples
      *            the list of sample events to be fired locally
      */
+    @Override
     public void processBatch(List<SampleEvent> samples) {
         if (samples != null && sampleListener != null) {
             for (SampleEvent e : samples) {
@@ -100,6 +98,7 @@ public class RemoteSampleListenerImpl extends java.rmi.server.UnicastRemoteObjec
         }
     }
 
+    @Override
     public void sampleOccurred(SampleEvent e) {
         if (sampleListener != null) {
             sampleListener.sampleOccurred(e);
@@ -109,6 +108,7 @@ public class RemoteSampleListenerImpl extends java.rmi.server.UnicastRemoteObjec
     /**
      * A sample has started.
      */
+    @Override
     public void sampleStarted(SampleEvent e) {
         if (sampleListener != null) {
             sampleListener.sampleStarted(e);
@@ -118,6 +118,7 @@ public class RemoteSampleListenerImpl extends java.rmi.server.UnicastRemoteObjec
     /**
      * A sample has stopped.
      */
+    @Override
     public void sampleStopped(SampleEvent e) {
         if (sampleListener != null) {
             sampleListener.sampleStopped(e);

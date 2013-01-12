@@ -36,7 +36,7 @@ public class ObsoleteGui extends AbstractJMeterGuiComponent {
 
     private static final long serialVersionUID = 240L;
 
-    private JLabel obsoleteMessage =
+    private final JLabel obsoleteMessage =
         new JLabel(JMeterUtils.getResString("obsolete_test_element")); // $NON-NLS-1$
 
     public ObsoleteGui(){
@@ -50,21 +50,26 @@ public class ObsoleteGui extends AbstractJMeterGuiComponent {
         add(obsoleteMessage,BorderLayout.WEST);
     }
 
+    @Override
     public String getLabelResource() {
         return "obsolete_test_element"; // $NON-NLS-1$
     }
 
+    @Override
     public TestElement createTestElement() {
         return new ConfigTestElement();
     }
 
+    @Override
     public void modifyTestElement(TestElement element) {
     }
 
+    @Override
     public JPopupMenu createPopupMenu() {
         return null;
     }
 
+    @Override
     public Collection<String> getMenuCategories() {
         return null;
     }

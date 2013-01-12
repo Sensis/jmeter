@@ -104,6 +104,7 @@ public class XPathExtractor extends AbstractScopedTestElement implements
      * Return value as variable defined by REFNAME. Returns DEFAULT value
      * if not found.
      */
+    @Override
     public void process() {
         JMeterContext context = getThreadContext();
         final SampleResult previousResult = context.getPreviousResult();
@@ -331,17 +332,5 @@ public class XPathExtractor extends AbstractScopedTestElement implements
 
     public boolean isDownloadDTDs() {
         return getPropertyAsBoolean(DOWNLOAD_DTDS, false);
-    }
-    
-    /** 
-     * {@inheritDoc}}
-     */
-    @Override
-    public List<String> getSearchableTokens() throws Exception {
-        List<String> result = super.getSearchableTokens();
-        result.add(getRefName());
-        result.add(getDefaultValue());
-        result.add(getXPathQuery());
-        return result;
     }
 }

@@ -19,11 +19,9 @@
 package org.apache.jmeter.util;
 
 import java.io.Serializable;
-import java.util.List;
 
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.testelement.AbstractTestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.ThreadListener;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContextService;
@@ -34,7 +32,7 @@ import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 
 public abstract class BeanShellTestElement extends AbstractTestElement
-    implements Serializable, Cloneable, ThreadListener, TestListener
+    implements Serializable, Cloneable, ThreadListener, TestStateListener
 {
     private static final Logger log = LoggingManager.getLoggerForClass();
 
@@ -177,6 +175,7 @@ public abstract class BeanShellTestElement extends AbstractTestElement
         script=s;
     }
 
+    @Override
     public void threadStarted() {
         if (bshInterpreter == null || !hasInitFile) {
             return;
@@ -188,6 +187,7 @@ public abstract class BeanShellTestElement extends AbstractTestElement
         }
     }
 
+    @Override
     public void threadFinished() {
         if (bshInterpreter == null || !hasInitFile) {
             return;
@@ -199,6 +199,7 @@ public abstract class BeanShellTestElement extends AbstractTestElement
         }
     }
 
+    @Override
     public void testEnded() {
         if (bshInterpreter == null || !hasInitFile) {
             return;
@@ -210,6 +211,7 @@ public abstract class BeanShellTestElement extends AbstractTestElement
         }
     }
 
+    @Override
     public void testEnded(String host) {
         if (bshInterpreter == null || !hasInitFile) {
             return;
@@ -224,10 +226,7 @@ public abstract class BeanShellTestElement extends AbstractTestElement
         }
     }
 
-    public void testIterationStart(LoopIterationEvent event) {
-        // Not implemented
-    }
-
+    @Override
     public void testStarted() {
         if (bshInterpreter == null || !hasInitFile) {
             return;
@@ -239,6 +238,7 @@ public abstract class BeanShellTestElement extends AbstractTestElement
         }
     }
 
+    @Override
     public void testStarted(String host) {
         if (bshInterpreter == null || !hasInitFile) {
             return;
@@ -277,15 +277,5 @@ public abstract class BeanShellTestElement extends AbstractTestElement
 
     public void setResetInterpreter(boolean b) {
         resetInterpreter = b;
-    }
-    
-    /** 
-     * {@inheritDoc}}
-     */
-    @Override
-    public List<String> getSearchableTokens() throws Exception {
-        List<String> result = super.getSearchableTokens();
-        result.add(getScript());
-        return result;
     }
 }

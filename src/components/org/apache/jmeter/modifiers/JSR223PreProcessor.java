@@ -20,7 +20,7 @@ package org.apache.jmeter.modifiers;
 
 import java.io.IOException;
 
-import javax.script.ScriptEngineManager;
+import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
 import org.apache.jmeter.processor.PreProcessor;
@@ -35,16 +35,15 @@ public class JSR223PreProcessor extends JSR223TestElement implements Cloneable, 
 
     private static final long serialVersionUID = 232L;
 
+    @Override
     public void process() {
-
         try {
-            ScriptEngineManager sem = getManager();
-            if(sem == null) { return; }
-            processFileOrScript(sem);
+            ScriptEngine scriptEngine = getScriptEngine();
+            processFileOrScript(scriptEngine, null);
         } catch (ScriptException e) {
-            log.warn("Problem in JSR223 script "+e);
+            log.error("Problem in JSR223 script ", e);
         } catch (IOException e) {
-            log.warn("Problem in JSR223 script "+e);
+            log.error("Problem in JSR223 script ", e);
         }
     }
 }

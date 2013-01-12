@@ -20,7 +20,7 @@ package org.apache.jmeter.gui.action;
 
 import java.util.List;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Searcher implementation that searches text as is
@@ -48,7 +48,8 @@ public class RawTextSearcher implements Searcher {
 	/**
 	 * {@inheritDoc}
 	 */
-	public boolean search(List<String> textTokens) {
+	@Override
+    public boolean search(List<String> textTokens) {
 		boolean result = false;
 		for (String searchableToken : textTokens) {
 			if(!StringUtils.isEmpty(searchableToken)) {

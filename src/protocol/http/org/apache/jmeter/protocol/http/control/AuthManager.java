@@ -34,12 +34,13 @@ import java.util.StringTokenizer;
 import org.apache.commons.io.IOUtils;
 import org.apache.jmeter.config.ConfigElement;
 import org.apache.jmeter.config.ConfigTestElement;
-import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.testelement.property.CollectionProperty;
 import org.apache.jmeter.testelement.property.PropertyIterator;
 import org.apache.jmeter.testelement.property.TestElementProperty;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
+import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 
 // For Unit tests, @see TestAuthManager
@@ -55,9 +56,9 @@ public class AuthManager extends ConfigTestElement implements Serializable {
 
     private static final Logger log = LoggingManager.getLoggerForClass();
 
-    private final static String AUTH_LIST = "AuthManager.auth_list"; //$NON-NLS-1$
+    private static final String AUTH_LIST = "AuthManager.auth_list"; //$NON-NLS-1$
 
-    private final static String[] COLUMN_RESOURCE_NAMES = {
+    private static final String[] COLUMN_RESOURCE_NAMES = {
         "auth_base_url", //$NON-NLS-1$
         "username",      //$NON-NLS-1$
         "password",      //$NON-NLS-1$
@@ -66,13 +67,13 @@ public class AuthManager extends ConfigTestElement implements Serializable {
         };
 
     // Column numbers - must agree with order above
-    public final static int COL_URL = 0;
-    public final static int COL_USERNAME = 1;
-    public final static int COL_PASSWORD = 2;
-    public final static int COL_DOMAIN = 3;
-    public final static int COL_REALM = 4;
+    public static final int COL_URL = 0;
+    public static final int COL_USERNAME = 1;
+    public static final int COL_PASSWORD = 2;
+    public static final int COL_DOMAIN = 3;
+    public static final int COL_REALM = 4;
 
-    private final static int COLUMN_COUNT = COLUMN_RESOURCE_NAMES.length;
+    private static final int COLUMN_COUNT = COLUMN_RESOURCE_NAMES.length;
 
     /**
      * Default Constructor.
@@ -154,11 +155,11 @@ public class AuthManager extends ConfigTestElement implements Serializable {
         try {
             if (url.getPort() == -1) {
                 // Obtain another URL with an explicit port:
-                int port = url.getProtocol().equalsIgnoreCase("http") ? 80 : 443;
+                int port = url.getProtocol().equalsIgnoreCase("http") ? HTTPConstants.DEFAULT_HTTP_PORT : HTTPConstants.DEFAULT_HTTPS_PORT;
                 // only http and https are supported
                 url2 = new URL(url.getProtocol(), url.getHost(), port, url.getPath());
-            } else if ((url.getPort() == 80 && url.getProtocol().equalsIgnoreCase("http"))
-                    || (url.getPort() == 443 && url.getProtocol().equalsIgnoreCase("https"))) {
+            } else if ((url.getPort() == HTTPConstants.DEFAULT_HTTP_PORT && url.getProtocol().equalsIgnoreCase("http"))
+                    || (url.getPort() == HTTPConstants.DEFAULT_HTTPS_PORT && url.getProtocol().equalsIgnoreCase("https"))) {
                 url2 = new URL(url.getProtocol(), url.getHost(), url.getPath());
             }
         } catch (MalformedURLException e) {
@@ -244,7 +245,7 @@ public class AuthManager extends ConfigTestElement implements Serializable {
             String line;
             while ((line = reader.readLine()) != null) {
                 try {
-                    if (line.startsWith("#") || line.trim().length() == 0) { //$NON-NLS-1$
+                    if (line.startsWith("#") || JOrphanUtils.isBlank(line)) { //$NON-NLS-1$
                         continue;
                     }
                     StringTokenizer st = new StringTokenizer(line, "\t"); //$NON-NLS-1$
@@ -289,6 +290,6 @@ public class AuthManager extends ConfigTestElement implements Serializable {
     // Needs to be package protected for Unit test
     static boolean isSupportedProtocol(URL url) {
         String protocol = url.getProtocol().toLowerCase(java.util.Locale.ENGLISH);
-        return protocol.equals(HTTPConstantsInterface.PROTOCOL_HTTP) || protocol.equals(HTTPConstantsInterface.PROTOCOL_HTTPS);
+        return protocol.equals(HTTPConstants.PROTOCOL_HTTP) || protocol.equals(HTTPConstants.PROTOCOL_HTTPS);
     }
 }

@@ -35,7 +35,6 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.apache.avalon.framework.configuration.ConfigurationException;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.util.NoThreadClone;
 import org.apache.jmeter.gui.GuiPackage;
 import org.apache.jmeter.samplers.Clearable;
@@ -49,7 +48,7 @@ import org.apache.jmeter.save.OldSaveService;
 import org.apache.jmeter.save.SaveService;
 import org.apache.jmeter.services.FileServer;
 import org.apache.jmeter.testelement.TestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.property.BooleanProperty;
 import org.apache.jmeter.testelement.property.ObjectProperty;
 import org.apache.jmeter.visualizers.Visualizer;
@@ -66,7 +65,7 @@ import com.thoughtworks.xstream.converters.ConversionException;
  * The class must be thread-safe because it is shared between threads (NoThreadClone).
  */
 public class ResultCollector extends AbstractListenerElement implements SampleListener, Clearable, Serializable,
-        TestListener, Remoteable, NoThreadClone {
+        TestStateListener, Remoteable, NoThreadClone {
 
     private static final Logger log = LoggingManager.getLoggerForClass();
 
@@ -239,6 +238,7 @@ public class ResultCollector extends AbstractListenerElement implements SampleLi
         setFilenameProperty(f);
     }
 
+    @Override
     public void testEnded(String host) {
         synchronized(LOCK){
             instanceCount--;
@@ -253,6 +253,7 @@ public class ResultCollector extends AbstractListenerElement implements SampleLi
         }
     }
 
+    @Override
     public void testStarted(String host) {
         synchronized(LOCK){
             instanceCount++;
@@ -272,10 +273,12 @@ public class ResultCollector extends AbstractListenerElement implements SampleLi
         }
     }
 
+    @Override
     public void testEnded() {
         testEnded(TEST_IS_LOCAL);
     }
 
+    @Override
     public void testStarted() {
         testStarted(TEST_IS_LOCAL);
     }
@@ -300,7 +303,7 @@ public class ResultCollector extends AbstractListenerElement implements SampleLi
             BufferedReader dataReader = null;
             BufferedInputStream bufferedInputStream = null;
             try {
-                dataReader = new BufferedReader(new FileReader(file));
+                dataReader = new BufferedReader(new FileReader(file)); // TODO Charset ?
                 // Get the first line, and see if it is XML
                 String line = dataReader.readLine();
                 dataReader.close();
@@ -476,9 +479,11 @@ public class ResultCollector extends AbstractListenerElement implements SampleLi
         return true;
     }
 
+    @Override
     public void sampleStarted(SampleEvent e) {
     }
 
+    @Override
     public void sampleStopped(SampleEvent e) {
     }
 
@@ -488,6 +493,7 @@ public class ResultCollector extends AbstractListenerElement implements SampleLi
      * @param event
      *            the sample event that was received
      */
+    @Override
     public void sampleOccurred(SampleEvent event) {
         SampleResult result = event.getResult();
 
@@ -571,12 +577,6 @@ public class ResultCollector extends AbstractListenerElement implements SampleLi
     }
 
     /**
-     * {@inheritDoc}
-     */
-    public void testIterationStart(LoopIterationEvent event) {
-    }
-
-    /**
      * @return Returns the saveConfig.
      */
     public SampleSaveConfiguration getSaveConfig() {
@@ -599,6 +599,7 @@ public class ResultCollector extends AbstractListenerElement implements SampleLi
     // This is required so that
     // @see org.apache.jmeter.gui.tree.JMeterTreeModel.getNodesOfType()
     // can find the Clearable nodes - the userObject has to implement the interface.
+    @Override
     public void clearData() {
     }
 }

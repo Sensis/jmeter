@@ -18,6 +18,7 @@
 
 package org.apache.jmeter.protocol.ftp.sampler;
 
+import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -63,26 +64,26 @@ public class FTPSampler extends AbstractSampler implements Interruptible {
                     "org.apache.jmeter.protocol.ftp.config.gui.FtpConfigGui",
                     "org.apache.jmeter.config.gui.SimpleConfigGui"}));
     
-    public final static String SERVER = "FTPSampler.server"; // $NON-NLS-1$
+    public static final String SERVER = "FTPSampler.server"; // $NON-NLS-1$
 
-    public final static String PORT = "FTPSampler.port"; // $NON-NLS-1$
+    public static final String PORT = "FTPSampler.port"; // $NON-NLS-1$
 
     // N.B. Originally there was only one filename, and only get(RETR) was supported
     // To maintain backwards compatibility, the property name needs to remain the same
-    public final static String REMOTE_FILENAME = "FTPSampler.filename"; // $NON-NLS-1$
+    public static final String REMOTE_FILENAME = "FTPSampler.filename"; // $NON-NLS-1$
 
-    public final static String LOCAL_FILENAME = "FTPSampler.localfilename"; // $NON-NLS-1$
+    public static final String LOCAL_FILENAME = "FTPSampler.localfilename"; // $NON-NLS-1$
 
-    public final static String INPUT_DATA = "FTPSampler.inputdata"; // $NON-NLS-1$
+    public static final String INPUT_DATA = "FTPSampler.inputdata"; // $NON-NLS-1$
 
     // Use binary mode file transfer?
-    public final static String BINARY_MODE = "FTPSampler.binarymode"; // $NON-NLS-1$
+    public static final String BINARY_MODE = "FTPSampler.binarymode"; // $NON-NLS-1$
 
     // Are we uploading?
-    public final static String UPLOAD_FILE = "FTPSampler.upload"; // $NON-NLS-1$
+    public static final String UPLOAD_FILE = "FTPSampler.upload"; // $NON-NLS-1$
 
     // Should the file data be saved in the response?
-    public final static String SAVE_RESPONSE = "FTPSampler.saveresponse"; // $NON-NLS-1$
+    public static final String SAVE_RESPONSE = "FTPSampler.saveresponse"; // $NON-NLS-1$
 
     private transient volatile FTPClient savedClient; // used for interrupting the sampler
 
@@ -165,6 +166,7 @@ public class FTPSampler extends AbstractSampler implements Interruptible {
         return sb.toString();
     }
 
+    @Override
     public SampleResult sample(Entry e) {
         SampleResult res = new SampleResult();
         res.setSuccessful(false); // Assume failure
@@ -211,7 +213,7 @@ public class FTPSampler extends AbstractSampler implements Interruptible {
                         } else {
                             File infile = new File(local);
                             res.setBytes((int)infile.length());
-                            input = new FileInputStream(infile);
+                            input = new BufferedInputStream(new FileInputStream(infile));
                         }
                         ftpOK = ftp.storeFile(remote, input);
                     } else {
@@ -293,6 +295,7 @@ public class FTPSampler extends AbstractSampler implements Interruptible {
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean interrupt() {
         FTPClient client = savedClient;
         if (client != null) {

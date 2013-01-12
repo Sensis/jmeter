@@ -46,9 +46,11 @@ public class MonitorGraph extends JComponent implements MonitorGuiListener, Clea
 
     private boolean drawThread = true;
 
-    private boolean drawYgrid = true;
+    // TODO field always true, what for ?
+    private final boolean drawYgrid = true;
 
-    private boolean drawXgrid = true;
+    // TODO field always true, what for ?
+    private final boolean drawXgrid = true;
 
     /**
      * Needed for Serialization tests.
@@ -85,6 +87,7 @@ public class MonitorGraph extends JComponent implements MonitorGuiListener, Clea
      * The method will first check to see if the graph is visible. If it is, it
      * will repaint the graph.
      */
+    @Override
     public void updateGui(final MonitorModel model) {
         if (this.isShowing()) {
             this.current = model;
@@ -128,6 +131,7 @@ public class MonitorGraph extends JComponent implements MonitorGuiListener, Clea
     /**
      * updateGui() will call repaint
      */
+    @Override
     public void updateGui() {
         repaint();
     }
@@ -135,6 +139,7 @@ public class MonitorGraph extends JComponent implements MonitorGuiListener, Clea
     /**
      * clear will repaint the graph
      */
+    @Override
     public void clearData() {
         paintComponent(getGraphics());
         this.repaint();

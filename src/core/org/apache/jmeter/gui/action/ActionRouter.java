@@ -55,8 +55,10 @@ public final class ActionRouter implements ActionListener {
     private ActionRouter() {
     }
 
+    @Override
     public void actionPerformed(final ActionEvent e) {
         SwingUtilities.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 performAction(e);
             }
@@ -228,7 +230,7 @@ public final class ActionRouter implements ActionListener {
 
     protected void preActionPerformed(Class<? extends Command> action, ActionEvent e) {
         if (action != null) {
-            HashSet<ActionListener> listenerSet = preActionListeners.get(action.getName());
+            Set<ActionListener> listenerSet = preActionListeners.get(action.getName());
             if (listenerSet != null && listenerSet.size() > 0) {
                 ActionListener[] listeners = listenerSet.toArray(new ActionListener[listenerSet.size()]);
                 for (int i = 0; i < listeners.length; i++) {
@@ -240,7 +242,7 @@ public final class ActionRouter implements ActionListener {
 
     protected void postActionPerformed(Class<? extends Command> action, ActionEvent e) {
         if (action != null) {
-            HashSet<ActionListener> listenerSet = postActionListeners.get(action.getName());
+            Set<ActionListener> listenerSet = postActionListeners.get(action.getName());
             if (listenerSet != null && listenerSet.size() > 0) {
                 ActionListener[] listeners = listenerSet.toArray(new ActionListener[listenerSet.size()]);
                 for (int i = 0; i < listeners.length; i++) {
@@ -281,8 +283,6 @@ public final class ActionRouter implements ActionListener {
             }
         } catch (HeadlessException e){
             log.warn(e.toString());
-        } catch (JMeterError e) {
-            throw e;
         } catch (Exception e) {
             log.error("exception finding action handlers", e);
         }

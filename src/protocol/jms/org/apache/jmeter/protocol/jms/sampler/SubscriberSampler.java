@@ -19,21 +19,22 @@ package org.apache.jmeter.protocol.jms.sampler;
 
 import java.util.Enumeration;
 
+import javax.jms.BytesMessage;
 import javax.jms.JMSException;
 import javax.jms.MapMessage;
 import javax.jms.Message;
+import javax.jms.ObjectMessage;
 import javax.jms.TextMessage;
 import javax.naming.NamingException;
 
-import org.apache.commons.lang.StringUtils;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.protocol.jms.Utils;
 import org.apache.jmeter.protocol.jms.client.InitialContextFactory;
 import org.apache.jmeter.protocol.jms.client.ReceiveSubscriber;
 import org.apache.jmeter.protocol.jms.control.gui.JMSSubscriberGui;
 import org.apache.jmeter.samplers.Interruptible;
 import org.apache.jmeter.samplers.SampleResult;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.ThreadListener;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
@@ -52,7 +53,7 @@ import org.apache.log.Logger;
 // Note: originally the code did use the ClientPool to "share" subscribers, however since the
 // key was "this" and each sampler is unique - nothing was actually shared.
 
-public class SubscriberSampler extends BaseJMSSampler implements Interruptible, ThreadListener, TestListener {
+public class SubscriberSampler extends BaseJMSSampler implements Interruptible, ThreadListener, TestStateListener {
 
     private static final long serialVersionUID = 240L;
 
@@ -237,6 +238,16 @@ public class SubscriberSampler extends BaseJMSSampler implements Interruptible, 
             try {
                 if (msg instanceof TextMessage){
                     buffer.append(((TextMessage) msg).getText());
+                } else if (msg instanceof ObjectMessage){
+                    ObjectMessage objectMessage = (ObjectMessage) msg;
+                    if(objectMessage.getObject() != null) {
+                        buffer.append(objectMessage.getObject().getClass());
+                    } else {
+                        buffer.append("object is null");
+                    }
+                } else if (msg instanceof BytesMessage){
+                    BytesMessage bytesMessage = (BytesMessage) msg;
+                    buffer.append(bytesMessage.getBodyLength() + " bytes received in BytesMessage");
                 } else if (msg instanceof MapMessage){
                     MapMessage mapm = (MapMessage) msg;
                     @SuppressWarnings("unchecked") // MapNames are Strings
@@ -268,6 +279,7 @@ public class SubscriberSampler extends BaseJMSSampler implements Interruptible, 
      * <br/>
      * {@inheritDoc}
      */
+    @Override
     public void threadStarted() {
         // Disabled thread start if listen on sample choice
         if (isDestinationStatic() || START_ON_SAMPLE) {
@@ -317,6 +329,7 @@ public class SubscriberSampler extends BaseJMSSampler implements Interruptible, 
      * <br/>
      * {@inheritDoc}
      */
+    @Override
     public void threadFinished() {
         if (SUBSCRIBER != null){ // Can be null if init fails
             SUBSCRIBER.close();
@@ -333,6 +346,7 @@ public class SubscriberSampler extends BaseJMSSampler implements Interruptible, 
     /**
      * Handle an interrupt of the test.
      */
+    @Override
     public boolean interrupt() {
         boolean oldvalue = interrupted;
         interrupted = true;   // so we break the loops in SampleWithListener and SampleWithReceive
@@ -428,7 +442,7 @@ public class SubscriberSampler extends BaseJMSSampler implements Interruptible, 
     }
     
     // This was the old value that was checked for
-    private final static String RECEIVE_STR = JMeterUtils.getResString(JMSSubscriberGui.RECEIVE_RSC); // $NON-NLS-1$
+    private static final String RECEIVE_STR = JMeterUtils.getResString(JMSSubscriberGui.RECEIVE_RSC); // $NON-NLS-1$
 
     public boolean isStopBetweenSamples() {
         return getPropertyAsBoolean(STOP_BETWEEN, false);
@@ -441,6 +455,7 @@ public class SubscriberSampler extends BaseJMSSampler implements Interruptible, 
     /**
      * {@inheritDoc}
      */
+    @Override
     public void testEnded() {
         InitialContextFactory.close();
     }
@@ -448,6 +463,7 @@ public class SubscriberSampler extends BaseJMSSampler implements Interruptible, 
     /**
      * {@inheritDoc}
      */
+    @Override
     public void testEnded(String host) {
         testEnded();
     }
@@ -455,13 +471,7 @@ public class SubscriberSampler extends BaseJMSSampler implements Interruptible, 
     /**
      * {@inheritDoc}
      */
-    public void testIterationStart(LoopIterationEvent event) {
-    	// NOOP
-    }
-
-    /**
-     * {@inheritDoc}
-     */
+    @Override
     public void testStarted() {
     	testStarted("");
     }
@@ -469,6 +479,7 @@ public class SubscriberSampler extends BaseJMSSampler implements Interruptible, 
     /**
      * {@inheritDoc}
      */
+    @Override
     public void testStarted(String host) {
     	// NOOP
     }

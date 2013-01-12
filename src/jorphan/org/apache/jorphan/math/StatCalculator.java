@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.TreeMap;
 import java.util.Map.Entry;
 
-import org.apache.commons.lang.mutable.MutableLong;
+import org.apache.commons.lang3.mutable.MutableLong;
 
 /**
  * This class serves as a way to calculate the median, max, min etc. of a list of values.
@@ -34,7 +34,7 @@ import org.apache.commons.lang.mutable.MutableLong;
 public abstract class StatCalculator<T extends Number & Comparable<? super T>> {
 
     // key is the type to collect (usually long), value = count of entries
-    private final TreeMap<T, MutableLong> valuesMap = new TreeMap<T, MutableLong>();
+    private final Map<T, MutableLong> valuesMap = new TreeMap<T, MutableLong>();
     // We use a TreeMap because we need the entries to be sorted
 
     // Running values, updated for each sample
@@ -156,17 +156,16 @@ public abstract class StatCalculator<T extends Number & Comparable<? super T>> {
      * Returns the distribution of the values in the list.
      *
      * @return map containing either Integer or Long keys; entries are a Number array containing the key and the [Integer] count.
-     * TODO - why is the key value also stored in the entry array?
+     * TODO - why is the key value also stored in the entry array? See Bug 53825
      */
-    public synchronized Map<Number, Number[]> getDistribution() {
-        HashMap<Number, Number[]> items = new HashMap <Number, Number[]> ();
-        Number[] dis;
+    public Map<Number, Number[]> getDistribution() {
+        Map<Number, Number[]> items = new HashMap<Number, Number[]>();
 
-        for (T nx : valuesMap.keySet()) {
-            dis = new Number[2];
-            dis[0] = nx;
-            dis[1] = valuesMap.get(nx);
-            items.put(nx, dis);
+        for (Entry<T, MutableLong> entry : valuesMap.entrySet()) {
+            Number[] dis = new Number[2];
+            dis[0] = entry.getKey();
+            dis[1] = entry.getValue();
+            items.put(entry.getKey(), dis);
         }
         return items;
     }

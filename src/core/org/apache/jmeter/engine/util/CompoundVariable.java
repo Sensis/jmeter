@@ -105,6 +105,10 @@ public class CompoundVariable implements Function {
         try {
             setParameters(parameters);
         } catch (InvalidVariableException e) {
+            // TODO should level be more than debug ?
+            if(log.isDebugEnabled()) {
+                log.debug("Invalid variable:"+ parameters, e);
+            }
         }
     }
 
@@ -128,6 +132,7 @@ public class CompoundVariable implements Function {
     }
 
     /** {@inheritDoc} */
+    @Override
     public String execute(SampleResult previousResult, Sampler currentSampler) {
         if (compiledComponents == null || compiledComponents.size() == 0) {
             return ""; // $NON-NLS-1$
@@ -140,6 +145,10 @@ public class CompoundVariable implements Function {
                 try {
                     results.append(((Function) item).execute(previousResult, currentSampler));
                 } catch (InvalidVariableException e) {
+                    // TODO should level be more than debug ?
+                    if(log.isDebugEnabled()) {
+                        log.debug("Invalid variable:"+item, e);
+                    }
                 }
             } else if (item instanceof SimpleVariable) {
                 testDynamic = true;
@@ -164,6 +173,7 @@ public class CompoundVariable implements Function {
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<String> getArgumentDesc() {
         return new LinkedList<String>();
     }
@@ -192,7 +202,7 @@ public class CompoundVariable implements Function {
                 return ((Class<?>) functions.get(functionName)).newInstance();
             } catch (Exception e) {
                 log.error("", e); // $NON-NLS-1$
-                throw new InvalidVariableException();
+                throw new InvalidVariableException(e);
             }
         }
         return new SimpleVariable(functionName);
@@ -215,11 +225,13 @@ public class CompoundVariable implements Function {
     // Dummy methods needed by Function interface
 
     /** {@inheritDoc} */
+    @Override
     public String getReferenceKey() {
         return ""; // $NON-NLS-1$
     }
 
     /** {@inheritDoc} */
+    @Override
     public void setParameters(Collection<CompoundVariable> parameters) throws InvalidVariableException {
     }
 }

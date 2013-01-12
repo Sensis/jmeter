@@ -90,6 +90,7 @@ public final class NewDriver {
                 new File(jmDir + File.separator + "lib" + File.separator + "junit")};// $NON-NLS-1$ $NON-NLS-2$
         for (int a = 0; a < libDirs.length; a++) {
             File[] libJars = libDirs[a].listFiles(new FilenameFilter() {
+                @Override
                 public boolean accept(File dir, String name) {// only accept jar files
                     return name.endsWith(".jar");// $NON-NLS-1$
                 }
@@ -125,8 +126,9 @@ public final class NewDriver {
         System.setProperty(JAVA_CLASS_PATH, initial_classpath + classpath.toString());
         loader = AccessController.doPrivileged(
         		new java.security.PrivilegedAction<DynamicClassLoader>() {
-        	        public DynamicClassLoader run() {
-        	        	return new DynamicClassLoader(jars.toArray(new URL[0]));
+        	        @Override
+                    public DynamicClassLoader run() {
+        	        	return new DynamicClassLoader(jars.toArray(new URL[jars.size()]));
         	        }
         	    }
         );
@@ -212,7 +214,7 @@ public final class NewDriver {
                 initialClass = loader.loadClass("org.apache.jmeter.JMeter");// $NON-NLS-1$
             }
             Object instance = initialClass.newInstance();
-            Method startup = initialClass.getMethod("start", new Class[] { (new String[0]).getClass() });// $NON-NLS-1$
+            Method startup = initialClass.getMethod("start", new Class[] { new String[0].getClass() });// $NON-NLS-1$
             startup.invoke(instance, new Object[] { args });
         } catch(Throwable e){
             e.printStackTrace();

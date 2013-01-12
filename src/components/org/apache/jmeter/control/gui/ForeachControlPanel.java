@@ -47,6 +47,16 @@ public class ForeachControlPanel extends AbstractControllerGui {
     private JTextField inputVal;
 
     /**
+     * A field allowing the user to specify the indice start of the loop
+     */
+    private JTextField startIndex;
+
+    /**
+     * A field allowing the user to specify the indice end of the loop
+     */
+    private JTextField endIndex;
+
+    /**
      * A field allowing the user to specify output variable the controller
      * should return.
      */
@@ -68,6 +78,11 @@ public class ForeachControlPanel extends AbstractControllerGui {
     /** The name of the loops field component. */
     private static final String RETURNVAL = "Return Field"; // $NON-NLS-1$
 
+    /** The name of the start index field component. */
+    private static final String START_INDEX = "Start Index Field"; // $NON-NLS-1$
+
+    /** The name of the end index field component. */
+    private static final String END_INDEX = "End Index Field"; // $NON-NLS-1$
     /**
      * Create a new LoopControlPanel as a standalone component.
      */
@@ -103,11 +118,14 @@ public class ForeachControlPanel extends AbstractControllerGui {
     public void configure(TestElement element) {
         super.configure(element);
         inputVal.setText(((ForeachController) element).getInputValString());
+        startIndex.setText(((ForeachController) element).getStartIndexAsString());
+        endIndex.setText(((ForeachController) element).getEndIndexAsString());
         returnVal.setText(((ForeachController) element).getReturnValString());
         useSeparator.setSelected(((ForeachController) element).getUseSeparator());
     }
 
     /* Implements JMeterGUIComponent.createTestElement() */
+    @Override
     public TestElement createTestElement() {
         ForeachController lc = new ForeachController();
         modifyTestElement(lc);
@@ -115,20 +133,16 @@ public class ForeachControlPanel extends AbstractControllerGui {
     }
 
     /* Implements JMeterGUIComponent.modifyTestElement(TestElement) */
+    @Override
     public void modifyTestElement(TestElement lc) {
         configureTestElement(lc);
         if (lc instanceof ForeachController) {
-            if (inputVal.getText().length() > 0) {
-                ((ForeachController) lc).setInputVal(inputVal.getText());
-            } else {
-                ((ForeachController) lc).setInputVal(""); // $NON-NLS-1$
-            }
-            if (returnVal.getText().length() > 0) {
-                ((ForeachController) lc).setReturnVal(returnVal.getText());
-            } else {
-                ((ForeachController) lc).setReturnVal(""); // $NON-NLS-1$
-            }
-            ((ForeachController) lc).setUseSeparator(useSeparator.isSelected());
+            ForeachController fec = (ForeachController) lc;
+            fec.setInputVal(inputVal.getText());
+            fec.setStartIndex(startIndex.getText());
+            fec.setEndIndex(endIndex.getText());
+            fec.setReturnVal(returnVal.getText());
+            fec.setUseSeparator(useSeparator.isSelected());
         }
     }
 
@@ -140,11 +154,14 @@ public class ForeachControlPanel extends AbstractControllerGui {
         super.clearGui();
 
         inputVal.setText(""); // $NON-NLS-1$
+        startIndex.setText(""); // $NON-NLS-1$
+        endIndex.setText(""); // $NON-NLS-1$
         returnVal.setText(""); // $NON-NLS-1$
         useSeparator.setSelected(true);
     }
 
 
+    @Override
     public String getLabelResource() {
         return "foreach_controller_title"; // $NON-NLS-1$
     }
@@ -187,6 +204,8 @@ public class ForeachControlPanel extends AbstractControllerGui {
 
         // LOOP LABEL
         JLabel inputValLabel = new JLabel(JMeterUtils.getResString("foreach_input")); // $NON-NLS-1$
+        JLabel startIndexLabel = new JLabel(JMeterUtils.getResString("foreach_start_index")); // $NON-NLS-1$
+        JLabel endIndexLabel = new JLabel(JMeterUtils.getResString("foreach_end_index")); // $NON-NLS-1$
         JLabel returnValLabel = new JLabel(JMeterUtils.getResString("foreach_output")); // $NON-NLS-1$
 
         // TEXT FIELD
@@ -198,6 +217,22 @@ public class ForeachControlPanel extends AbstractControllerGui {
         inputValSubPanel.add(inputVal, BorderLayout.CENTER);
 
         // TEXT FIELD
+        JPanel startIndexSubPanel = new JPanel(new BorderLayout(5, 0));
+        startIndex = new JTextField("", 5); // $NON-NLS-1$
+        startIndex.setName(START_INDEX);
+        startIndexLabel.setLabelFor(startIndex);
+        startIndexSubPanel.add(startIndexLabel, BorderLayout.WEST);
+        startIndexSubPanel.add(startIndex, BorderLayout.CENTER);
+
+        // TEXT FIELD
+        JPanel endIndexSubPanel = new JPanel(new BorderLayout(5, 0));
+        endIndex = new JTextField("", 5); // $NON-NLS-1$
+        endIndex.setName(END_INDEX);
+        endIndexLabel.setLabelFor(endIndex);
+        endIndexSubPanel.add(endIndexLabel, BorderLayout.WEST);
+        endIndexSubPanel.add(endIndex, BorderLayout.CENTER);
+
+        // TEXT FIELD
         JPanel returnValSubPanel = new JPanel(new BorderLayout(5, 0));
         returnVal = new JTextField("", 5); // $NON-NLS-1$
         returnVal.setName(RETURNVAL);
@@ -207,8 +242,9 @@ public class ForeachControlPanel extends AbstractControllerGui {
 
         // Checkbox
         useSeparator = new JCheckBox(JMeterUtils.getResString("foreach_use_separator"), true); // $NON-NLS-1$
-
         loopPanel.add(inputValSubPanel);
+        loopPanel.add(startIndexSubPanel);
+        loopPanel.add(endIndexSubPanel);
         loopPanel.add(returnValSubPanel);
         loopPanel.add(useSeparator);
 

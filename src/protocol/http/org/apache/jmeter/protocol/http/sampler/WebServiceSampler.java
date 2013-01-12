@@ -18,14 +18,17 @@
 
 package org.apache.jmeter.protocol.http.sampler;
 
+import java.io.BufferedInputStream;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
+import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 import java.net.MalformedURLException;
 import java.net.URL;
+import java.util.Hashtable;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Random;
@@ -37,15 +40,17 @@ import org.apache.jmeter.JMeter;
 import org.apache.jmeter.gui.JMeterFileFilter;
 import org.apache.jmeter.protocol.http.control.AuthManager;
 import org.apache.jmeter.protocol.http.control.Authorization;
+import org.apache.jmeter.protocol.http.control.Header;
+import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.util.DOMPool;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.io.TextFile;
 import org.apache.jorphan.logging.LoggingManager;
+import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 import org.apache.soap.Envelope;
 import org.apache.soap.SOAPException;
-import org.apache.soap.messaging.Message;
 import org.apache.soap.rpc.SOAPContext;
 import org.apache.soap.transport.http.SOAPHTTPConnection;
 import org.apache.soap.util.xml.XMLParserUtils;
@@ -416,12 +421,12 @@ public class WebServiceSampler extends HTTPSamplerBase  {
                 TextFile tfile = new TextFile(file);
                 fileContents = tfile.getText();
             }
-            FileInputStream fileInputStream = null;
+            InputStream fileInputStream = null;
             try {
-                fileInputStream = new FileInputStream(file);
+                fileInputStream = new BufferedInputStream(new FileInputStream(file));
                 doc = XDB.parse(fileInputStream);
             } finally {
-                IOUtils.closeQuietly(fileInputStream);
+                JOrphanUtils.closeQuietly(fileInputStream);
             }
         } else {// must be a "here" document
             fileContents = getXmlData();
@@ -470,8 +475,6 @@ public class WebServiceSampler extends HTTPSamplerBase  {
             result.setSamplerData(fileContents);// WARNING - could be large
 
             Envelope msgEnv = Envelope.unmarshall(rdoc);
-            // create a new message
-            Message msg = new Message();
             result.sampleStart();
             SOAPHTTPConnection spconn = null;
             // if a blank HeaderManager exists, try to
@@ -483,7 +486,6 @@ public class WebServiceSampler extends HTTPSamplerBase  {
             } else {
                 spconn = new SOAPHTTPConnection();
             }
-
             spconn.setTimeout(getTimeoutAsInt());
 
             // set the auth. thanks to KiYun Roe for contributing the patch
@@ -527,9 +529,20 @@ public class WebServiceSampler extends HTTPSamplerBase  {
                 }
             }
             
+            HeaderManager headerManager = this.getHeaderManager();
+            Hashtable<String,String> reqHeaders = null;
+            if(headerManager != null) {
+                int size = headerManager.getHeaders().size();
+                reqHeaders = new Hashtable<String, String>(size);
+                for (int i = 0; i < size; i++) {
+                    Header header = headerManager.get(i);
+                    reqHeaders.put(header.getName(), header.getValue());
+                }         
+            }
             spconn.setMaintainSession(getMaintainSession());
-            msg.setSOAPTransport(spconn);
-            msg.send(this.getUrl(), this.getSoapAction(), msgEnv);
+            spconn.send(this.getUrl(), this.getSoapAction(), reqHeaders, msgEnv, 
+                    null, new SOAPContext());
+
             @SuppressWarnings("unchecked") // API uses raw types
             final Map<String, String> headers = spconn.getHeaders();
             result.setResponseHeaders(convertSoapHeaders(headers));

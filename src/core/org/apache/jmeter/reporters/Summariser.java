@@ -25,14 +25,15 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.util.NoThreadClone;
 import org.apache.jmeter.samplers.Remoteable;
 import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.samplers.SampleListener;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.AbstractTestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
+import org.apache.jmeter.threads.JMeterContextService;
+import org.apache.jmeter.threads.JMeterContextService.ThreadCounts;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jmeter.visualizers.RunningSample;
 import org.apache.jorphan.logging.LoggingManager;
@@ -59,7 +60,7 @@ import org.apache.log.Logger;
  *
  */
 public class Summariser extends AbstractTestElement
-    implements Serializable, SampleListener, TestListener, NoThreadClone, Remoteable {
+    implements Serializable, SampleListener, TestStateListener, NoThreadClone, Remoteable {
 
     /*
      * N.B. NoThreadClone is used to ensure that the testStarted() methods will share the same
@@ -165,6 +166,7 @@ public class Summariser extends AbstractTestElement
      *
      * @see org.apache.jmeter.samplers.SampleListener#sampleOccurred(org.apache.jmeter.samplers.SampleEvent)
      */
+    @Override
     public void sampleOccurred(SampleEvent e) {
         SampleResult s = e.getResult();
 
@@ -245,10 +247,18 @@ public class Summariser extends AbstractTestElement
         sb.append(" ");
         sb.append(type);
         sb.append(" ");
-        sb.append(longToSb(tmp, s.getNumSamples(), 5));
+        sb.append(longToSb(tmp, s.getNumSamples(), 6));
         sb.append(" in ");
         long elapsed = s.getElapsed();
-        sb.append(doubleToSb(dfDouble, tmp, elapsed / 1000.0, 5, 1));
+        long elapsedSec = (elapsed + 500) / 1000; // rounded seconds
+        if (elapsedSec > 100       // No point displaying decimals (less than 1% error)
+         || (elapsed - elapsedSec * 1000) < 50 // decimal would be zero
+         ) {
+            sb.append(longToSb(tmp, elapsedSec, 5));
+        } else {
+            double elapsedSecf = elapsed / 1000.0d; // fractional seconds
+            sb.append(doubleToSb(dfDouble, tmp, elapsedSecf, 5, 1)); // This will round
+        }
         sb.append("s = ");
         if (elapsed > 0) {
             sb.append(doubleToSb(dfDouble, tmp, s.getRate(), 6, 1));
@@ -266,15 +276,26 @@ public class Summariser extends AbstractTestElement
         sb.append(" (");
         sb.append(s.getErrorPercentageString());
         sb.append(")");
+        if ("+".equals(type)) {
+            ThreadCounts tc = JMeterContextService.getThreadCounts();
+            sb.append(" Active: ");
+            sb.append(tc.activeThreads);
+            sb.append(" Started: ");
+            sb.append(tc.startedThreads);
+            sb.append(" Finished: ");
+            sb.append(tc.finishedThreads);
+        }
         return sb.toString();
     }
 
     /** {@inheritDoc} */
+    @Override
     public void sampleStarted(SampleEvent e) {
         // not used
     }
 
     /** {@inheritDoc} */
+    @Override
     public void sampleStopped(SampleEvent e) {
         // not used
     }
@@ -291,11 +312,13 @@ public class Summariser extends AbstractTestElement
 
 
     /** {@inheritDoc} */
+    @Override
     public void testStarted() {
         testStarted("local");
     }
 
     /** {@inheritDoc} */
+    @Override
     public void testEnded() {
         testEnded("local");
     }
@@ -311,6 +334,7 @@ public class Summariser extends AbstractTestElement
      * <p>
      * {@inheritDoc}
      */
+    @Override
     public void testStarted(String host) {
         synchronized (lock) {
             myName = getName();
@@ -329,6 +353,7 @@ public class Summariser extends AbstractTestElement
      * <p>
      * {@inheritDoc}
      */
+    @Override
     public void testEnded(String host) {
         Set<Entry<String, Totals>> totals = null;
         synchronized (lock) {
@@ -366,8 +391,4 @@ public class Summariser extends AbstractTestElement
         }
     }
 
-    /** {@inheritDoc} */
-    public void testIterationStart(LoopIterationEvent event) {
-        // not used
-    }
 }

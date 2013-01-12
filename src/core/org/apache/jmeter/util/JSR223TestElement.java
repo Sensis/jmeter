@@ -23,16 +23,23 @@ import java.io.File;
 import java.io.FileReader;
 import java.io.IOException;
 import java.io.Serializable;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Properties;
 
+import javax.script.Bindings;
+import javax.script.Compilable;
+import javax.script.CompiledScript;
 import javax.script.ScriptEngine;
 import javax.script.ScriptEngineManager;
 import javax.script.ScriptException;
 
+import org.apache.commons.collections.map.LRUMap;
 import org.apache.commons.io.IOUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
-import org.apache.jmeter.testelement.AbstractTestElement;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.threads.JMeterVariables;
@@ -40,149 +47,209 @@ import org.apache.jorphan.logging.LoggingManager;
 import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 
-public abstract class JSR223TestElement extends AbstractTestElement
-    implements Serializable, Cloneable
+public abstract class JSR223TestElement extends ScriptingTestElement
+    implements Serializable, TestStateListener
 {
+    /**
+     * Initialization On Demand Holder pattern
+     */
+    private static class LazyHolder {
+        public static final ScriptEngineManager INSTANCE = new ScriptEngineManager();
+    }
+ 
+    /**
+     * @return ScriptEngineManager singleton
+     */
+    public static ScriptEngineManager getInstance() {
+            return LazyHolder.INSTANCE;
+    }
+    
     private static final long serialVersionUID = 233L;
 
-    //++ For TestBean implementations only
-    private String parameters; // passed to file or script
+    private String cacheKey = ""; // If not empty then script in ScriptText will be compiled and cached
 
-    private String filename; // file to source (overrides script)
-
-    private String script; // script (if file not provided)
-
-    private String scriptLanguage; // JSR223 language to use
-    //-- For TestBean implementations only
+    /**
+     * Cache of compiled scripts
+     */
+    @SuppressWarnings("unchecked") // LRUMap does not support generics (yet)
+    private static final Map<String, CompiledScript> compiledScriptsCache = 
+            Collections.synchronizedMap(
+                    new LRUMap(JMeterUtils.getPropDefault("jsr223.compiled_scripts_cache_size", 100)));
 
     public JSR223TestElement() {
         super();
-        init();
     }
 
-    private void init() {
-        parameters=""; // ensure variables are not null
-        filename="";
-        script="";
-        scriptLanguage="";
+    protected ScriptEngine getScriptEngine() throws ScriptException {
+        final String lang = getScriptLanguage();
+
+        ScriptEngine scriptEngine = getInstance().getEngineByName(lang);
+        if (scriptEngine == null) {
+            throw new ScriptException("Cannot find engine named: "+lang);
+        }
+
+        return scriptEngine;
     }
 
-    protected Object readResolve() {
-        init();
-        return this;
-    }
-
-    @Override
-    public Object clone() {
-        JSR223TestElement o = (JSR223TestElement) super.clone();
-        o.init();
-       return o;
-    }
-
-    protected ScriptEngineManager getManager() {
-        ScriptEngineManager sem = new ScriptEngineManager();
-        initManager(sem);
-        return sem;
-    }
-
-    protected void initManager(ScriptEngineManager sem) {
+    /**
+     * Populate variables to be passed to scripts
+     * @param bindings Bindings
+     */
+    protected void populateBindings(Bindings bindings) {
         final String label = getName();
         final String fileName = getFilename();
         final String scriptParameters = getParameters();
         // Use actual class name for log
         final Logger logger = LoggingManager.getLoggerForShortName(getClass().getName());
-
-        sem.put("log", logger);
-        sem.put("Label", label);
-        sem.put("FileName", fileName);
-        sem.put("Parameters", scriptParameters);
+        bindings.put("log", logger);
+        bindings.put("Label", label);
+        bindings.put("FileName", fileName);
+        bindings.put("Parameters", scriptParameters);
         String [] args=JOrphanUtils.split(scriptParameters, " ");//$NON-NLS-1$
-        sem.put("args", args);
+        bindings.put("args", args);
         // Add variables for access to context and variables
         JMeterContext jmctx = JMeterContextService.getContext();
-        sem.put("ctx", jmctx);
+        bindings.put("ctx", jmctx);
         JMeterVariables vars = jmctx.getVariables();
-        sem.put("vars", vars);
+        bindings.put("vars", vars);
         Properties props = JMeterUtils.getJMeterProperties();
-        sem.put("props", props);
+        bindings.put("props", props);
         // For use in debugging:
-        sem.put("OUT", System.out);
+        bindings.put("OUT", System.out);
 
         // Most subclasses will need these:
         Sampler sampler = jmctx.getCurrentSampler();
-        sem.put("sampler", sampler);
+        bindings.put("sampler", sampler);
         SampleResult prev = jmctx.getPreviousResult();
-        sem.put("prev", prev);
+        bindings.put("prev", prev);
     }
 
 
-    protected Object processFileOrScript(ScriptEngineManager sem) throws IOException, ScriptException {
-
-        final String lang = getScriptLanguage();
-        ScriptEngine scriptEngine = sem.getEngineByName(lang);
-        if (scriptEngine == null) {
-            throw new ScriptException("Cannot find engine named: "+lang);
+    /**
+     * This method will run inline script or file script with special behaviour for file script:
+     * - If ScriptEngine implements Compilable script will be compiled and cached
+     * - If not if will be run
+     * @param scriptEngine ScriptEngine
+     * @param bindings {@link Bindings} might be null
+     * @return Object returned by script
+     * @throws IOException
+     * @throws ScriptException
+     */
+    protected Object processFileOrScript(ScriptEngine scriptEngine, Bindings bindings) throws IOException, ScriptException {
+        if (bindings == null) {
+            bindings = scriptEngine.createBindings();
         }
-
-        File scriptFile = new File(getFilename());
-        if (scriptFile.exists()) {
-            BufferedReader fileReader = null;
-            try {
-                fileReader = new BufferedReader(new FileReader(scriptFile)); // TODO Charset ?
-                return scriptEngine.eval(fileReader);
-            } finally {
-                IOUtils.closeQuietly(fileReader);
+        populateBindings(bindings);
+        File scriptFile = new File(getFilename()); 
+        // Hack as in bsh-2.0b5.jar BshScriptEngine implements Compilable but throws new Error
+        boolean supportsCompilable = scriptEngine instanceof Compilable 
+                && !(scriptEngine.getClass().getName().equals("bsh.engine.BshScriptEngine"));
+        if (!StringUtils.isEmpty(getFilename())) {
+            if (scriptFile.exists() && scriptFile.canRead()) {
+                BufferedReader fileReader = null;
+                try {
+                    if (supportsCompilable) {
+                        String cacheKey = 
+                                getScriptLanguage()+"#"+
+                                scriptFile.getAbsolutePath()+"#"+
+                                        scriptFile.lastModified();
+                        CompiledScript compiledScript = 
+                                compiledScriptsCache.get(cacheKey);
+                        if (compiledScript==null) {
+                            synchronized (compiledScriptsCache) {
+                                compiledScript = 
+                                        compiledScriptsCache.get(cacheKey);
+                                if (compiledScript==null) {
+                                    // TODO Charset ?
+                                    fileReader = new BufferedReader(new FileReader(scriptFile), 
+                                            (int)scriptFile.length()); 
+                                    compiledScript = 
+                                            ((Compilable) scriptEngine).compile(fileReader);
+                                    compiledScriptsCache.put(cacheKey, compiledScript);
+                                }
+                            }
+                        }
+                        return compiledScript.eval(bindings);
+                    } else {
+                        // TODO Charset ?
+                        fileReader = new BufferedReader(new FileReader(scriptFile), 
+                                (int)scriptFile.length()); 
+                        return scriptEngine.eval(fileReader, bindings);                    
+                    }
+                } finally {
+                    IOUtils.closeQuietly(fileReader);
+                }
+            }  else {
+                throw new ScriptException("Script file '"+scriptFile.getAbsolutePath()+"' does not exist or is unreadable for element:"+getName());
+            }
+        } else if (!StringUtils.isEmpty(getScript())){
+            if (supportsCompilable && !StringUtils.isEmpty(cacheKey)) {
+                CompiledScript compiledScript = 
+                        compiledScriptsCache.get(cacheKey);
+                if (compiledScript==null) {
+                    synchronized (compiledScriptsCache) {
+                        compiledScript = 
+                                compiledScriptsCache.get(cacheKey);
+                        if (compiledScript==null) {
+                            compiledScript = 
+                                    ((Compilable) scriptEngine).compile(getScript());
+                            compiledScriptsCache.put(cacheKey, compiledScript);
+                        }
+                    }
+                }
+                return compiledScript.eval(bindings);
+            } else {
+                return scriptEngine.eval(getScript(), bindings);
             }
         } else {
-            return scriptEngine.eval(getScript());
+            throw new ScriptException("Both script file and script text are empty for element:"+getName());            
         }
+    }
 
+
+    /**
+     * @return the cacheKey
+     */
+    public String getCacheKey() {
+        return cacheKey;
     }
 
     /**
-     * Return the script (TestBean version).
-     * Must be overridden for subclasses that don't implement TestBean
-     * otherwise the clone() method won't work.
-     *
-     * @return the script to execute
+     * @param cacheKey the cacheKey to set
      */
-    public String getScript(){
-        return script;
+    public void setCacheKey(String cacheKey) {
+        this.cacheKey = cacheKey;
     }
 
     /**
-     * Set the script (TestBean version).
-     * Must be overridden for subclasses that don't implement TestBean
-     * otherwise the clone() method won't work.
-     *
-     * @param s the script to execute (may be blank)
+     * @see org.apache.jmeter.testelement.TestStateListener#testStarted()
      */
-    public void setScript(String s){
-        script=s;
+    @Override
+    public void testStarted() {
+        // NOOP
     }
 
-    public String getParameters() {
-        return parameters;
+    /**
+     * @see org.apache.jmeter.testelement.TestStateListener#testStarted(java.lang.String)
+     */
+    @Override
+    public void testStarted(String host) {
+        // NOOP   
     }
 
-    public void setParameters(String s) {
-        parameters = s;
+    /**
+     * @see org.apache.jmeter.testelement.TestStateListener#testEnded()
+     */
+    @Override
+    public void testEnded() {
+        testEnded("");
     }
 
-    public String getFilename() {
-        return filename;
+    /**
+     * @see org.apache.jmeter.testelement.TestStateListener#testEnded(java.lang.String)
+     */
+    @Override
+    public void testEnded(String host) {
+        compiledScriptsCache.clear();
     }
-
-    public void setFilename(String s) {
-        filename = s;
-    }
-
-    public String getScriptLanguage() {
-        return scriptLanguage;
-    }
-
-    public void setScriptLanguage(String s) {
-        scriptLanguage = s;
-    }
-
 }

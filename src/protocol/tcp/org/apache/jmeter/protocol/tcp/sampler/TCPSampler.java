@@ -36,10 +36,11 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.samplers.AbstractSampler;
 import org.apache.jmeter.samplers.Entry;
+import org.apache.jmeter.samplers.Interruptible;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.ThreadListener;
@@ -52,8 +53,8 @@ import org.apache.log.Logger;
  * A sampler which understands Tcp requests.
  *
  */
-public class TCPSampler extends AbstractSampler implements ThreadListener {
-    private static final long serialVersionUID = 233L;
+public class TCPSampler extends AbstractSampler implements ThreadListener, Interruptible {
+    private static final long serialVersionUID = 280L;
 
     private static final Logger log = LoggingManager.getLoggerForClass();
 
@@ -81,6 +82,15 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
     public static final String REQUEST = "TCPSampler.request"; //$NON-NLS-1$
 
     public static final String RE_USE_CONNECTION = "TCPSampler.reUseConnection"; //$NON-NLS-1$
+    public static final boolean RE_USE_CONNECTION_DEFAULT = true;
+
+    public static final String CLOSE_CONNECTION = "TCPSampler.closeConnection"; //$NON-NLS-1$
+    public static final boolean CLOSE_CONNECTION_DEFAULT = false;
+
+    public static final String SO_LINGER = "TCPSampler.soLinger"; //$NON-NLS-1$
+
+    public static final String EOL_BYTE = "TCPSampler.EolByte"; //$NON-NLS-1$
+
     //-- JMX file constants - do not change
 
     private static final String TCPKEY = "TCP"; //$NON-NLS-1$ key for HashMap
@@ -141,6 +151,8 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
     
     private transient boolean firstSample; // Are we processing the first sample?
 
+    private transient volatile Socket currentSocket; // used for handling interrupt
+
     public TCPSampler() {
         log.debug("Created " + this); //$NON-NLS-1$
     }
@@ -165,6 +177,9 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
                 closeSocket(socketKey); // Bug 44910 - close previous socket (if any)
                 SocketAddress sockaddr = new InetSocketAddress(getServer(), getPort());
                 con = new Socket();
+                if (getPropertyAsString(SO_LINGER,"").length() > 0){
+                	con.setSoLinger(true, getSoLinger());
+                }
                 con.connect(sockaddr, getConnectTimeout());
                 if(log.isDebugEnabled()) {
                     log.debug("Created new connection " + con); //$NON-NLS-1$
@@ -217,13 +232,34 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
         return getPropertyAsString(SERVER);
     }
 
-    public void setReUseConnection(String reuse) {
-        this.setProperty(RE_USE_CONNECTION, reuse);
+    public boolean isReUseConnection() {
+        return getPropertyAsBoolean(RE_USE_CONNECTION, RE_USE_CONNECTION_DEFAULT);
     }
 
-    public boolean isReUseConnection() {
-        return getPropertyAsBoolean(RE_USE_CONNECTION);
+    public void setCloseConnection(String close) {
+    	this.setProperty(CLOSE_CONNECTION, close, "");
     }
+
+    public boolean isCloseConnection() {
+    	return getPropertyAsBoolean(CLOSE_CONNECTION, CLOSE_CONNECTION_DEFAULT);
+    }
+
+    public void setSoLinger(String soLinger) {
+    	this.setProperty(SO_LINGER, soLinger, "");
+    }
+
+    public int getSoLinger() {
+    	return getPropertyAsInt(SO_LINGER);
+    }
+    
+    public void setEolByte(String eol) {
+        this.setProperty(EOL_BYTE, eol, "");
+    }
+    
+    public int getEolByte() {
+        return getPropertyAsInt(EOL_BYTE);
+    }
+    
 
     public void setPort(String newFilename) {
         this.setProperty(PORT, newFilename);
@@ -263,10 +299,6 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
 
     public int getConnectTimeout() {
         return getPropertyAsInt(TIMEOUT_CONNECT, 0);
-    }
-
-    public void setNoDelay(String newNoDelay) {
-        this.setProperty(NODELAY, newNoDelay);
     }
 
     public boolean getNoDelay() {
@@ -320,6 +352,11 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
         }
         try {
             TCPClient = (TCPClient) javaClass.newInstance();
+            if (getPropertyAsString(EOL_BYTE, "").length()>0){
+                TCPClient.setEolByte(getEolByte());
+                log.info("Using eolByte=" + getEolByte());
+            }
+
             if (log.isDebugEnabled()) {
                 log.debug(this + "Created: " + getClassname() + "@" + Integer.toHexString(TCPClient.hashCode())); //$NON-NLS-1$
             }
@@ -329,18 +366,34 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
         return TCPClient;
     }
 
+    @Override
     public SampleResult sample(Entry e)// Entry tends to be ignored ...
     {
         if (firstSample) { // Do stuff we cannot do as part of threadStarted()
             initSampling();
             firstSample=false;
         }
+        final boolean reUseConnection = isReUseConnection();
+        final boolean closeConnection = isCloseConnection();
         String socketKey = getSocketKey();
-        log.debug(getLabel() + " " + getFilename() + " " + getUsername() + " " + getPassword());
+        if (log.isDebugEnabled()){
+            log.debug(getLabel() + " " + getFilename() + " " + getUsername() + " " + getPassword());
+        }
         SampleResult res = new SampleResult();
         boolean isSuccessful = false;
         res.setSampleLabel(getName());// Use the test element name for the label
-        res.setSamplerData("Host: " + getServer() + " Port: " + getPort()); //$NON-NLS-1$ $NON-NLS-2$
+        StringBuilder sb = new StringBuilder();
+        sb.append("Host: ").append(getServer()); // $NON-NLS-1$
+        sb.append(" Port: ").append(getPort()); // $NON-NLS-1$
+        sb.append("\n"); // $NON-NLS-1$
+        sb.append("Reuse: ").append(reUseConnection); // $NON-NLS-1$
+        sb.append(" Close: ").append(closeConnection); // $NON-NLS-1$
+        sb.append("\n["); // $NON-NLS-1$
+        sb.append("SOLINGER: ").append(getSoLinger()); // $NON-NLS-1$
+        sb.append(" EOL: ").append(getEolByte()); // $NON-NLS-1$
+        sb.append(" noDelay: ").append(getNoDelay()); // $NON-NLS-1$
+        sb.append("]"); // $NON-NLS-1$
+        res.setSamplerData(sb.toString()); 
         res.sampleStart();
         try {
             Socket sock = getSocket(socketKey);
@@ -351,6 +404,7 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
                 res.setResponseCode("500"); //$NON-NLS-1$
                 res.setResponseMessage("Protocol handler not found");
             } else {
+                currentSocket = sock;
                 InputStream is = sock.getInputStream();
                 OutputStream os = sock.getOutputStream();
                 String req = getRequestData();
@@ -369,13 +423,14 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
             isSuccessful=setupSampleResult(res, "", ex, protocolHandler.getCharset());
             closeSocket(socketKey);
         } finally {
+            currentSocket = null;
             // Calculate response time
             res.sampleEnd();
 
             // Set if we were successful or not
             res.setSuccessful(isSuccessful);
 
-            if (!isReUseConnection()) {
+            if (!reUseConnection || closeConnection) {
                 closeSocket(socketKey);
             }
         }
@@ -440,6 +495,7 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
         return true;
     }
 
+    @Override
     public void threadStarted() {
         log.debug("Thread Started"); //$NON-NLS-1$
         firstSample = true;
@@ -474,6 +530,7 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void threadFinished() {
         log.debug("Thread Finished"); //$NON-NLS-1$
         tearDown();
@@ -507,5 +564,19 @@ public class TCPSampler extends AbstractSampler implements ThreadListener {
     public boolean applies(ConfigTestElement configElement) {
         String guiClass = configElement.getProperty(TestElement.GUI_CLASS).getStringValue();
         return APPLIABLE_CONFIG_CLASSES.contains(guiClass);
+    }
+
+    @Override
+    public boolean interrupt() {
+        Socket sock = currentSocket; // fetch in case gets nulled later
+        if (sock != null) {
+            try {
+                sock.close();
+            } catch (IOException e) {
+                // ignored
+            }
+            return true;
+        }
+        return false;
     }
 }

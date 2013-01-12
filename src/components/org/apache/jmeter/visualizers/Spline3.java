@@ -93,9 +93,9 @@ public class Spline3 {
 
     protected int _n; // number of non extreme nodes (_m-2)
 
-    final static protected float DEFAULT_PRECISION = (float) 1E-1;
+    static final protected float DEFAULT_PRECISION = (float) 1E-1;
 
-    final static protected int DEFAULT_MAX_ITERATIONS = 100;
+    static final protected int DEFAULT_MAX_ITERATIONS = 100;
 
     protected float _minPrecision = DEFAULT_PRECISION;
 
@@ -118,9 +118,7 @@ public class Spline3 {
         this._m = n;
         // grab the nodes
         this._r = new float[n];
-        for (int i = 0; i < n; i++) {
-            _r[i] = r[i];
-        }
+        System.arraycopy(r, 0, _r, 0, _r.length);
         // the number of non extreme nodes is the number of intervals
         // minus 1, i.e. the length of r minus 2
         this._n = n - 2;

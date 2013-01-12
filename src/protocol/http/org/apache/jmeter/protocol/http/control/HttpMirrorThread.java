@@ -54,6 +54,7 @@ public class HttpMirrorThread implements Runnable {
     /**
      * Main processing method for the HttpMirror object
      */
+    @Override
     public void run() {
         log.debug("Starting thread");
         BufferedInputStream in = null;
@@ -85,13 +86,27 @@ public class HttpMirrorThread implements Runnable {
             baos.close();
             final String headerString = headers.toString();
 
+            // Look for special Response Length header
+            String responseStatusValue = getRequestHeaderValue(headerString, "X-ResponseStatus"); //$NON-NLS-1$
+            if(responseStatusValue == null) {
+                responseStatusValue = "200 OK";
+            }
+
             log.debug("Write headers");
             out = new BufferedOutputStream(clientSocket.getOutputStream());
             // The headers are written using ISO_8859_1 encoding
-            out.write("HTTP/1.0 200 OK".getBytes(ISO_8859_1)); //$NON-NLS-1$
+            out.write(("HTTP/1.0 "+responseStatusValue).getBytes(ISO_8859_1)); //$NON-NLS-1$
             out.write(CRLF);
             out.write("Content-Type: text/plain".getBytes(ISO_8859_1)); //$NON-NLS-1$
             out.write(CRLF);
+
+            // Look for special Response Length header
+            String responseLengthValue = getRequestHeaderValue(headerString, "X-ResponseLength"); //$NON-NLS-1$
+            int responseLength=-1;
+            if(responseLengthValue != null) {
+                responseLength = Integer.parseInt(responseLengthValue);
+            }
+
             // Look for special Cookie request
             String cookieHeaderValue = getRequestHeaderValue(headerString, "X-SetCookie"); //$NON-NLS-1$
             if (cookieHeaderValue != null) {
@@ -102,12 +117,15 @@ public class HttpMirrorThread implements Runnable {
             out.write(CRLF);
             out.flush();
 
-            out.write(baos.toByteArray());
-
+            if(responseLength>=0) {
+                out.write(baos.toByteArray(), 0, Math.min(baos.toByteArray().length, responseLength));
+            } else {
+                out.write(baos.toByteArray());
+            }
             // Check if we have found a content-length header
             String contentLengthHeaderValue = getRequestHeaderValue(headerString, "Content-Length"); //$NON-NLS-1$
             if(contentLengthHeaderValue != null) {
-                contentLength = Integer.valueOf(contentLengthHeaderValue).intValue();
+                contentLength = Integer.parseInt(contentLengthHeaderValue);
             }
             // Look for special Sleep request
             String sleepHeaderValue = getRequestHeaderValue(headerString, "X-Sleep"); //$NON-NLS-1$

@@ -44,7 +44,7 @@ class FieldStringEditor extends PropertyEditorSupport implements ActionListener,
      * cases where the combo box would not have other options than 'Edit'), or
      * the text editing component in the combo box.
      */
-    private JTextField textField;
+    private final JTextField textField;
 
     /**
      * Value on which we started the editing. Used to avoid firing
@@ -113,6 +113,7 @@ class FieldStringEditor extends PropertyEditorSupport implements ActionListener,
     /**
      * {@inheritDoc}
      */
+    @Override
     public void actionPerformed(ActionEvent e) {
         firePropertyChange();
     }
@@ -120,12 +121,14 @@ class FieldStringEditor extends PropertyEditorSupport implements ActionListener,
     /**
      * {@inheritDoc}
      */
+    @Override
     public void focusGained(FocusEvent e) {
     }
 
     /**
      * {@inheritDoc}
      */
+    @Override
     public void focusLost(FocusEvent e) {
         firePropertyChange();
     }

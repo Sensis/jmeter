@@ -41,6 +41,7 @@ import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testbeans.TestBeanHelper;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.timers.Timer;
+import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 import org.apache.jorphan.collections.HashTreeTraverser;
 import org.apache.jorphan.logging.LoggingManager;
@@ -54,7 +55,28 @@ import org.apache.log.Logger;
  * </ul>
  */
 public class TestCompiler implements HashTreeTraverser {
-    private static final Logger log = LoggingManager.getLoggerForClass();
+
+    private static final Logger LOG = LoggingManager.getLoggerForClass();
+
+    /**
+     * Set this property {@value} to true to revert to using a shared static set.
+     */
+    private static final String USE_STATIC_SET = "TestCompiler.useStaticSet";
+    
+    /**
+     * The default value - {@value} - assumed for {@link #USE_STATIC_SET}. 
+     */
+    private static final boolean USE_STATIC_SET_DEFAULT = false;
+
+    public static final boolean IS_USE_STATIC_SET = JMeterUtils.getPropDefault(USE_STATIC_SET, USE_STATIC_SET_DEFAULT);
+
+    /**
+     * This set keeps track of which ObjectPairs have been seen.
+     * It seems to be used to prevent adding a child to a parent if the child has already been added.
+     * If the ObjectPair (child, parent) is present, then the child has been added.
+     * Otherwise, the child is added to the parent and the pair is added to the Set.
+     */
+    private static final Set<ObjectPair> PAIRING = new HashSet<ObjectPair>();
 
     private final LinkedList<TestElement> stack = new LinkedList<TestElement>();
 
@@ -65,15 +87,7 @@ public class TestCompiler implements HashTreeTraverser {
 
     private final HashTree testTree;
 
-    /*
-     * This set keeps track of which ObjectPairs have been seen.
-     * Its purpose is not entirely clear (please document if you know!) but it is needed,..
-     */
-    private static final Set<ObjectPair> pairing = new HashSet<ObjectPair>();
-
-    //List loopIterListeners = new ArrayList();
-
-    public TestCompiler(HashTree testTree, JMeterVariables vars) {
+    public TestCompiler(HashTree testTree) {
         this.testTree = testTree;
     }
 
@@ -83,8 +97,8 @@ public class TestCompiler implements HashTreeTraverser {
      */
     public static void initialize() {
         // synch is probably not needed as only called before run starts
-        synchronized (pairing) {
-            pairing.clear();
+        synchronized (PAIRING) {
+            PAIRING.clear();
         }
     }
 
@@ -113,7 +127,7 @@ public class TestCompiler implements HashTreeTraverser {
     }
 
     /**
-     * Reset pack to it's initial state
+     * Reset pack to its initial state
      * @param pack
      */
     public void done(SamplePackage pack) {
@@ -121,13 +135,15 @@ public class TestCompiler implements HashTreeTraverser {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void addNode(Object node, HashTree subTree) {
         stack.addLast((TestElement) node);
     }
 
     /** {@inheritDoc} */
+    @Override
     public void subtractNode() {
-        log.debug("Subtracting node, stack size = " + stack.size());
+        LOG.debug("Subtracting node, stack size = " + stack.size());
         TestElement child = stack.getLast();
         trackIterationListeners(stack);
         if (child instanceof Sampler) {
@@ -138,12 +154,27 @@ public class TestCompiler implements HashTreeTraverser {
         }
         stack.removeLast();
         if (stack.size() > 0) {
-            ObjectPair pair = new ObjectPair(child, stack.getLast());
-            synchronized (pairing) {// Called from multiple threads
-                if (!pairing.contains(pair)) {
-                    pair.addTestElements();
-                    pairing.add(pair);
+            TestElement parent = stack.getLast();
+            boolean duplicate = false;
+            // Bug 53750: this condition used to be in ObjectPair#addTestElements()
+            if (parent instanceof Controller && (child instanceof Sampler || child instanceof Controller)) {
+                if (!IS_USE_STATIC_SET && parent instanceof TestCompilerHelper) {
+                    TestCompilerHelper te = (TestCompilerHelper) parent;
+                    duplicate = !te.addTestElementOnce(child);
+                } else { // this is only possible for 3rd party controllers by default
+                    ObjectPair pair = new ObjectPair(child, parent);
+                    synchronized (PAIRING) {// Called from multiple threads
+                        if (!PAIRING.contains(pair)) {
+                            parent.addTestElement(child);
+                            PAIRING.add(pair);
+                        } else {
+                            duplicate = true;
+                        }
+                    }
                 }
+            }
+            if (duplicate) {
+                LOG.warn("Unexpected duplicate for " + parent.getClass().getName() + " and " + child.getClass().getName());
             }
         }
     }
@@ -168,6 +199,7 @@ public class TestCompiler implements HashTreeTraverser {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void processPath() {
     }
 
@@ -247,7 +279,7 @@ public class TestCompiler implements HashTreeTraverser {
      */
     private void addDirectParentControllers(List<Controller> controllers, TestElement maybeController) {
         if (maybeController instanceof Controller) {
-            log.debug("adding controller: " + maybeController + " to sampler config");
+            LOG.debug("adding controller: " + maybeController + " to sampler config");
             controllers.add((Controller) maybeController);
         }
     }
@@ -257,15 +289,9 @@ public class TestCompiler implements HashTreeTraverser {
         private final TestElement child;
         private final TestElement parent;
 
-        public ObjectPair(TestElement one, TestElement two) {
-            this.child = one;
-            this.parent = two;
-        }
-
-        public void addTestElements() {
-            if (parent instanceof Controller && (child instanceof Sampler || child instanceof Controller)) {
-                parent.addTestElement(child);
-            }
+        public ObjectPair(TestElement child, TestElement parent) {
+            this.child = child;
+            this.parent = parent;
         }
 
         /** {@inheritDoc} */

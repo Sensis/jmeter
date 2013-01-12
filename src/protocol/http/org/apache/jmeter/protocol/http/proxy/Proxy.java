@@ -38,7 +38,6 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.regex.Pattern;
 
 import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.SSLContext;
@@ -50,7 +49,7 @@ import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.parser.HTMLParseException;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerBase;
 import org.apache.jmeter.protocol.http.util.ConversionUtils;
-import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.util.JMeterUtils;
@@ -112,8 +111,6 @@ public class Proxy extends Thread {
 
     private static final SamplerCreatorFactory factory = new SamplerCreatorFactory();
 
-    private static final Pattern COOKIE_SECURE_PATTERN = Pattern.compile("\\bsecure\\b", Pattern.CASE_INSENSITIVE);
-
     // Use with SSL connection
     private OutputStream outStreamClient = null;
 
@@ -131,11 +128,6 @@ public class Proxy extends Thread {
 
     /** Whether or not to capture the HTTP headers. */
     private boolean captureHttpHeaders;
-
-    /** Whether to try to spoof as https **/
-    private boolean httpsSpoof;
-
-    private String httpsSpoofMatch; // if non-empty, then URLs must match in order to be spoofed
 
     /** Reference to Deamon's Map of url string to page character encoding of that page */
     private Map<String, String> pageEncodings;
@@ -167,8 +159,6 @@ public class Proxy extends Thread {
         this.target = _target;
         this.clientSocket = _clientSocket;
         this.captureHttpHeaders = _target.getCaptureHttpHeaders();
-        this.httpsSpoof = _target.getHttpsSpoof();
-        this.httpsSpoofMatch = _target.getHttpsSpoofMatch();
         this.pageEncodings = _pageEncodings;
         this.formEncodings = _formEncodings;
     }
@@ -190,7 +180,7 @@ public class Proxy extends Thread {
             request.parse(new BufferedInputStream(clientSocket.getInputStream()));
             outStreamClient = clientSocket.getOutputStream();
 
-            if ((request.getMethod().startsWith(HTTPConstantsInterface.CONNECT)) && (outStreamClient != null)) {
+            if ((request.getMethod().startsWith(HTTPConstants.CONNECT)) && (outStreamClient != null)) {
                 log.debug("Method CONNECT => SSL");
                 // write a OK reponse to browser, to engage SSL exchange
                 outStreamClient.write(("HTTP/1.0 200 OK\r\n\r\n").getBytes(SampleResult.DEFAULT_HTTP_ENCODING)); // $NON-NLS-1$
@@ -208,9 +198,8 @@ public class Proxy extends Thread {
             }
 
             SamplerCreator samplerCreator = factory.getSamplerCreator(request, pageEncodings, formEncodings);
-            sampler = samplerCreator.createSampler(request, pageEncodings, formEncodings);
-            samplerCreator.populateSampler(sampler, request, pageEncodings, formEncodings);
-            
+            sampler = samplerCreator.createAndPopulateSampler(request, pageEncodings, formEncodings);
+
             /*
              * Create a Header Manager to ensure that the browsers headers are
              * captured and sent to the server
@@ -218,46 +207,16 @@ public class Proxy extends Thread {
             headers = request.getHeaderManager();
             sampler.setHeaderManager(headers);
 
-            /*
-             * If we are trying to spoof https, change the protocol
-             */
-            boolean forcedHTTPS = false; // so we know when to revert
-            if (httpsSpoof) {
-                if (httpsSpoofMatch.length() > 0){
-                    String url = request.getUrl();
-                    if (url.matches(httpsSpoofMatch)){
-                        sampler.setProtocol(HTTPConstantsInterface.PROTOCOL_HTTPS);
-                        forcedHTTPS = true;
-                    }
-                } else {
-                    sampler.setProtocol(HTTPConstantsInterface.PROTOCOL_HTTPS);
-                    forcedHTTPS = true;
-                }
-            }
             sampler.threadStarted(); // Needed for HTTPSampler2
             result = sampler.sample();
-
-            /*
-             * If we're dealing with text data, and if we're spoofing https,
-             * replace all occurences of "https://" with "http://" for the client.
-             * TODO - also check the match string to restrict the changes further?
-             */
-            if (httpsSpoof && SampleResult.TEXT.equals(result.getDataType()))
-            {
-                final String enc = result.getDataEncodingWithDefault();
-                String noHttpsResult = new String(result.getResponseData(),enc);
-                final String HTTPS_HOST = // match https://host[:port]/ and drop default port if present
-                    "https://([^:/]+)(:"+HTTPConstantsInterface.DEFAULT_HTTPS_PORT_STRING+")?"; // $NON-NLS-1$ $NON-NLS-2$
-                noHttpsResult = noHttpsResult.replaceAll(HTTPS_HOST, "http://$1"); // $NON-NLS-1$
-                result.setResponseData(noHttpsResult.getBytes(enc));
-            }
 
             // Find the page encoding and possibly encodings for forms in the page
             // in the response from the web server
             String pageEncoding = addPageEncoding(result);
             addFormEncodings(result, pageEncoding);
 
-            writeToClient(result, new BufferedOutputStream(clientSocket.getOutputStream()), forcedHTTPS);
+            writeToClient(result, new BufferedOutputStream(clientSocket.getOutputStream()));
+            samplerCreator.postProcessSampler(sampler, result);
         } catch (UnknownHostException uhe) {
             log.warn("Server Not Found.", uhe);
             writeErrorToClient(HttpReplyHdr.formServerNotFound());
@@ -269,7 +228,7 @@ public class Proxy extends Thread {
                     "<a href=\"http://jmeter.apache.org/usermanual/component_reference.html#HTTP_Proxy_Server\">HTTP Proxy Server documentation</a>"));
             result = generateErrorResult(result, e); // Generate result (if nec.) and populate it
         } catch (IOException ioe) {
-            log.error("Problem with SSL certificate? Ensure browser is set to accept the JMeter proxy cert: "+ioe.getLocalizedMessage());
+            log.error("Problem with SSL certificate? Ensure browser is set to accept the JMeter proxy cert: "+ioe.getLocalizedMessage(), ioe);
             // won't work: writeErrorToClient(HttpReplyHdr.formInternalError());
             if (result == null) {
                 result = new SampleResult();
@@ -281,9 +240,8 @@ public class Proxy extends Thread {
             writeErrorToClient(HttpReplyHdr.formInternalError());
             result = generateErrorResult(result, e); // Generate result (if nec.) and populate it
         } finally {
-            boolean samplerAvailable = sampler != null;
             if (log.isDebugEnabled()) {
-                if(samplerAvailable) {
+                if(sampler != null) {
                     log.debug("Will deliver sample " + sampler.getName());
                 }
             }
@@ -291,14 +249,14 @@ public class Proxy extends Thread {
              * We don't want to store any cookies in the generated test plan
              */
             if (headers != null) {
-                headers.removeHeaderNamed(HTTPConstantsInterface.HEADER_COOKIE);// Always remove cookies
-                headers.removeHeaderNamed(HTTPConstantsInterface.HEADER_AUTHORIZATION);// Always remove authorization
+                headers.removeHeaderNamed(HTTPConstants.HEADER_COOKIE);// Always remove cookies
+                headers.removeHeaderNamed(HTTPConstants.HEADER_AUTHORIZATION);// Always remove authorization
                 // Remove additional headers
                 for(String hdr : headersToRemove){
                     headers.removeHeaderNamed(hdr);
                 }
             }
-            if(samplerAvailable) {
+            if(sampler != null) {
                 target.deliverSampler(sampler, new TestElement[] { captureHttpHeaders ? headers : null }, result);
             }
             try {
@@ -306,7 +264,7 @@ public class Proxy extends Thread {
             } catch (Exception e) {
                 log.error("", e);
             }
-            if(samplerAvailable) {
+            if(sampler != null) {
                 sampler.threadFinished(); // Needed for HTTPSampler2
             }
         }
@@ -406,7 +364,7 @@ public class Proxy extends Thread {
         final String certPath = certFile.getAbsolutePath();
         if (certFile.exists() && certFile.canRead()) {
             try {
-                in = new FileInputStream(certFile);
+                in = new BufferedInputStream(new FileInputStream(certFile));
                 log.info("Opened Keystore file: "+certPath);
             } catch (FileNotFoundException e) {
                 log.error("No server cert file found: "+certPath, e);
@@ -437,9 +395,9 @@ public class Proxy extends Thread {
      * @throws IOException
      *             if an IOException occurs while writing
      */
-    private void writeToClient(SampleResult res, OutputStream out, boolean forcedHTTPS) throws IOException {
+    private void writeToClient(SampleResult res, OutputStream out) throws IOException {
         try {
-            String responseHeaders = messageResponseHeaders(res, forcedHTTPS);
+            String responseHeaders = messageResponseHeaders(res);
             out.write(responseHeaders.getBytes(SampleResult.DEFAULT_HTTP_ENCODING));
             out.write(CRLF_BYTES);
             out.write(res.getResponseData());
@@ -464,49 +422,38 @@ public class Proxy extends Thread {
      * The Transfer-Encoding header is also removed.
      * If the protocol was changed to HTTPS then change any Location header back to http
      * @param res - response
-     * @param forcedHTTPS  if we changed the protocol to https
      *
      * @return updated headers to be sent to client
      */
-    private String messageResponseHeaders(SampleResult res, boolean forcedHTTPS) {
+    private String messageResponseHeaders(SampleResult res) {
         String headers = res.getResponseHeaders();
         String [] headerLines=headers.split(NEW_LINE, 0); // drop empty trailing content
         int contentLengthIndex=-1;
-        boolean fixContentLength = forcedHTTPS;
+        boolean fixContentLength = false;
         for (int i=0;i<headerLines.length;i++){
             String line=headerLines[i];
             String[] parts=line.split(":\\s+",2); // $NON-NLS-1$
             if (parts.length==2){
-                if (HTTPConstantsInterface.TRANSFER_ENCODING.equalsIgnoreCase(parts[0])){
+                if (HTTPConstants.TRANSFER_ENCODING.equalsIgnoreCase(parts[0])){
                     headerLines[i]=null; // We don't want this passed on to browser
                     continue;
                 }
-                if (HTTPConstantsInterface.HEADER_CONTENT_ENCODING.equalsIgnoreCase(parts[0])
+                if (HTTPConstants.HEADER_CONTENT_ENCODING.equalsIgnoreCase(parts[0])
                     &&
-                    HTTPConstantsInterface.ENCODING_GZIP.equalsIgnoreCase(parts[1])
+                    HTTPConstants.ENCODING_GZIP.equalsIgnoreCase(parts[1])
                 ){
                     headerLines[i]=null; // We don't want this passed on to browser
                     fixContentLength = true;
                     continue;
                 }
-                if (HTTPConstantsInterface.HEADER_CONTENT_LENGTH.equalsIgnoreCase(parts[0])){
+                if (HTTPConstants.HEADER_CONTENT_LENGTH.equalsIgnoreCase(parts[0])){
                     contentLengthIndex=i;
                     continue;
-                }
-                final String HTTPS_PREFIX = "https://";
-                if (forcedHTTPS && HTTPConstantsInterface.HEADER_LOCATION.equalsIgnoreCase(parts[0])
-                        && parts[1].substring(0, HTTPS_PREFIX.length()).equalsIgnoreCase(HTTPS_PREFIX)){
-                    headerLines[i]=headerLines[i].replaceFirst(parts[1].substring(0,HTTPS_PREFIX.length()), "http://");
-                    continue;
-                }
-                if (forcedHTTPS && (HTTPConstantsInterface.HEADER_COOKIE.equalsIgnoreCase(parts[0]) || HTTPConstantsInterface.HEADER_SET_COOKIE.equalsIgnoreCase(parts[0])))
-                {
-                    headerLines[i]=COOKIE_SECURE_PATTERN.matcher(headerLines[i]).replaceAll("").trim(); //in forced https cookies need to be unsecured...
                 }
             }
         }
         if (fixContentLength && contentLengthIndex>=0){// Fix the content length
-            headerLines[contentLengthIndex]=HTTPConstantsInterface.HEADER_CONTENT_LENGTH+": "+res.getResponseData().length;
+            headerLines[contentLengthIndex]=HTTPConstants.HEADER_CONTENT_LENGTH+": "+res.getResponseData().length;
         }
         StringBuilder sb = new StringBuilder(headers.length());
         for (int i=0;i<headerLines.length;i++){

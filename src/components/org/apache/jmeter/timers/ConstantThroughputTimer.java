@@ -21,10 +21,9 @@ package org.apache.jmeter.timers;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentMap;
 
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testelement.AbstractTestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.threads.AbstractThreadGroup;
 import org.apache.jmeter.util.JMeterUtils;
@@ -40,7 +39,7 @@ import org.apache.log.Logger;
  * - delay each thread according to when it last ran
  * - delay each thread according to when any thread last ran
  */
-public class ConstantThroughputTimer extends AbstractTestElement implements Timer, TestListener, TestBean {
+public class ConstantThroughputTimer extends AbstractTestElement implements Timer, TestStateListener, TestBean {
     private static final long serialVersionUID = 3;
 
     private static class ThroughputInfo{
@@ -68,10 +67,10 @@ public class ConstantThroughputTimer extends AbstractTestElement implements Time
     private double throughput;
 
     //For calculating throughput across all threads
-    private final static ThroughputInfo allThreadsInfo = new ThroughputInfo();
+    private static final ThroughputInfo allThreadsInfo = new ThroughputInfo();
 
     //For holding the ThrougputInfo objects for all ThreadGroups. Keyed by AbstractThreadGroup objects
-    private final static ConcurrentMap<AbstractThreadGroup, ThroughputInfo> threadGroupsInfoMap =
+    private static final ConcurrentMap<AbstractThreadGroup, ThroughputInfo> threadGroupsInfoMap =
         new ConcurrentHashMap<AbstractThreadGroup, ThroughputInfo>();
 
 
@@ -120,6 +119,7 @@ public class ConstantThroughputTimer extends AbstractTestElement implements Time
      *
      * @see org.apache.jmeter.timers.Timer#delay()
      */
+    @Override
     public long delay() {
         long currentTime = System.currentTimeMillis();
 
@@ -133,7 +133,7 @@ public class ConstantThroughputTimer extends AbstractTestElement implements Time
             previousTime = currentTime;
             return 0;
         }
-        previousTime = currentTarget;
+        previousTime = currentTarget;            
         return currentTarget - currentTime;
     }
 
@@ -200,9 +200,12 @@ public class ConstantThroughputTimer extends AbstractTestElement implements Time
         return Math.max(calculatedDelay, 0);
     }
 
-    private synchronized void reset() {
-        allThreadsInfo.lastScheduledTime = 0;
+    private void reset() {
+        synchronized (allThreadsInfo.MUTEX) {
+            allThreadsInfo.lastScheduledTime = 0;            
+        }
         threadGroupsInfoMap.clear();
+        // no need to sync as one per instance
         previousTime = 0;
     }
 
@@ -224,6 +227,7 @@ public class ConstantThroughputTimer extends AbstractTestElement implements Time
      * <p>
      * {@inheritDoc}
      */
+    @Override
     public void testStarted()
     {
         log.debug("Test started - reset throughput calculation.");
@@ -233,6 +237,7 @@ public class ConstantThroughputTimer extends AbstractTestElement implements Time
     /**
      * {@inheritDoc}
      */
+    @Override
     public void testEnded() {
     	//NOOP
     }
@@ -240,6 +245,7 @@ public class ConstantThroughputTimer extends AbstractTestElement implements Time
     /**
      * {@inheritDoc}
      */
+    @Override
     public void testStarted(String host) {
         testStarted();
     }
@@ -247,14 +253,9 @@ public class ConstantThroughputTimer extends AbstractTestElement implements Time
     /**
      * {@inheritDoc}
      */
+    @Override
     public void testEnded(String host) {
     	//NOOP
     }
 
-    /**
-     * {@inheritDoc}
-     */
-    public void testIterationStart(LoopIterationEvent event) {
-    	//NOOP
-    }
 }

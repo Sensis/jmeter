@@ -48,33 +48,25 @@ public class DirectoryPanel extends HorizontalPanel implements ActionListener {
     private final List<ChangeListener> listeners = new LinkedList<ChangeListener>();
 
     private final String title;
-
-//    private final String filetype; // NOT USED
-
+    
     private final Color background;
 
     /**
      * Constructor for the FilePanel object.
      */
     public DirectoryPanel() {
-        this("", null, null);
+        this("", null);
     }
 
     public DirectoryPanel(String title) {
-        this(title, null, null);
+        this(title, null);
     }
 
-    public DirectoryPanel(String title, String filetype, Color bk) {
+    public DirectoryPanel(String title, Color bk) {
         this.title = title;
-//        this.filetype = filetype;
         this.background = bk;
         init();
     }
-
-    public DirectoryPanel(String title, String filetype) {
-        this(title, filetype, null);
-    }
-
     /**
      * Constructor for the FilePanel object.
      */
@@ -135,6 +127,7 @@ public class DirectoryPanel extends HorizontalPanel implements ActionListener {
         }
     }
 
+    @Override
     public void actionPerformed(ActionEvent e) {
         if (e.getActionCommand().equals(ACTION_BROWSE)) {
             JFileChooser chooser = DirectoryDialoger.promptToOpenFile();

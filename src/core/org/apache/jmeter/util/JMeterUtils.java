@@ -284,6 +284,7 @@ public class JMeterUtils implements UnitTestManager {
         return LazyPatternCacheHolder.INSTANCE.getPattern(expression, options);
     }
 
+    @Override
     public void initializeProperties(String file) {
         System.out.println("Initializing Properties: " + file);
         getProperties(file);
@@ -318,9 +319,7 @@ public class JMeterUtils implements UnitTestManager {
         if (p != null) {
             String[] paths = p.split(";"); // $NON-NLS-1$
             result = new String[paths.length + 1];
-            for (int i = 1; i < result.length; i++) {
-                result[i] = paths[i - 1];
-            }
+            System.arraycopy(paths, 0, result, 1, paths.length);
         }
         result[0] = getJMeterHome() + "/lib/ext"; // $NON-NLS-1$
         return result;
@@ -498,7 +497,12 @@ public class JMeterUtils implements UnitTestManager {
             if(forcedLocale != null) {
                 bundle = ResourceBundle.getBundle("org.apache.jmeter.resources.messages", forcedLocale); // $NON-NLS-1$
             }
-            resString = bundle.getString(resKey);
+            if (bundle.containsKey(resKey)) {
+                resString = bundle.getString(resKey);
+            } else {
+                log.warn("ERROR! Resource string not found: [" + resKey + "]");
+                resString = defaultValue;                
+            }
             if (ignoreResorces ){ // Special mode for debugging resource handling
                 return "["+key+"]";
             }
@@ -535,9 +539,8 @@ public class JMeterUtils implements UnitTestManager {
     public static String getLocaleString(String locale){
         // All keys in messages.properties are lowercase (historical reasons?)
         String resKey = locale.toLowerCase(java.util.Locale.ENGLISH);
-        try {
+        if (resources.containsKey(resKey)) {
             return resources.getString(resKey);
-        } catch (MissingResourceException e) {
         }
         return locale;
     }
@@ -565,11 +568,14 @@ public class JMeterUtils implements UnitTestManager {
      */
     public static ImageIcon getImage(String name) {
         try {
-            return new ImageIcon(JMeterUtils.class.getClassLoader().getResource(
-                    "org/apache/jmeter/images/" + name.trim())); // $NON-NLS-1$
-        } catch (NullPointerException e) {
-            log.warn("no icon for " + name);
-            return null;
+            URL url = JMeterUtils.class.getClassLoader().getResource(
+                    "org/apache/jmeter/images/" + name.trim());
+            if(url != null) {
+                return new ImageIcon(url); // $NON-NLS-1$
+            } else {
+                log.warn("no icon for " + name);
+                return null;                
+            }
         } catch (NoClassDefFoundError e) {// Can be returned by headless hosts
             log.info("no icon for " + name + " " + e.getMessage());
             return null;
@@ -603,22 +609,23 @@ public class JMeterUtils implements UnitTestManager {
         BufferedReader fileReader = null;
         try {
             String lineEnd = System.getProperty("line.separator"); // $NON-NLS-1$
-            fileReader = new BufferedReader(new InputStreamReader(JMeterUtils.class.getClassLoader()
-                    .getResourceAsStream(name)));
-            StringBuilder text = new StringBuilder();
-            String line = "NOTNULL"; // $NON-NLS-1$
-            while (line != null) {
-                line = fileReader.readLine();
-                if (line != null) {
-                    text.append(line);
-                    text.append(lineEnd);
+            InputStream is = JMeterUtils.class.getClassLoader().getResourceAsStream(name);
+            if(is != null) {
+                fileReader = new BufferedReader(new InputStreamReader(is));
+                StringBuilder text = new StringBuilder();
+                String line = "NOTNULL"; // $NON-NLS-1$
+                while (line != null) {
+                    line = fileReader.readLine();
+                    if (line != null) {
+                        text.append(line);
+                        text.append(lineEnd);
+                    }
                 }
+                // Done by finally block: fileReader.close();
+                return text.toString();
+            } else {
+                return ""; // $NON-NLS-1$                
             }
-            // Done by finally block: fileReader.close();
-            return text.toString();
-        } catch (NullPointerException e) // Cannot find file
-        {
-            return ""; // $NON-NLS-1$
         } catch (IOException e) {
             return ""; // $NON-NLS-1$
         } finally {
@@ -888,7 +895,6 @@ public class JMeterUtils implements UnitTestManager {
         combo.setSelectedIndex(idx);
         // Redisplay.
         combo.updateUI();
-        return;
     }
 
     /**
@@ -1294,5 +1300,13 @@ public class JMeterUtils implements UnitTestManager {
                 throw new Error(e);
             }
         }
+    }
+    
+    /**
+     * Help GC by triggering GC and finalization
+     */
+    public static final void helpGC() {
+        System.gc();
+        System.runFinalization();
     }
 }

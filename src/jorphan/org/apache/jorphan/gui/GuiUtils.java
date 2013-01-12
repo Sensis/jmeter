@@ -19,13 +19,29 @@
 package org.apache.jorphan.gui;
 
 import java.awt.Component;
+import java.awt.FlowLayout;
+import java.awt.Toolkit;
+import java.awt.datatransfer.Clipboard;
+import java.awt.datatransfer.DataFlavor;
+import java.awt.datatransfer.Transferable;
+import java.awt.datatransfer.UnsupportedFlavorException;
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
 
+import javax.swing.JComboBox;
+import javax.swing.JComponent;
+import javax.swing.JLabel;
+import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JTable;
+import javax.swing.border.EmptyBorder;
+import javax.swing.table.TableCellEditor;
 import javax.swing.table.TableCellRenderer;
 import javax.swing.table.TableColumn;
 
-public class GuiUtils {
+public final class GuiUtils {
 
     /**
      * Create a scroll panel that sets its preferred size to its minimum size.
@@ -63,5 +79,50 @@ public class GuiUtils {
         column.setMaxWidth(width);
         column.setPreferredWidth(width);
         column.setResizable(false);        
+    }
+    
+    /**
+     * Create a GUI component JLabel + JComboBox with a left and right margin (5px)
+     * @param label
+     * @param comboBox
+     * @return the JComponent (margin+JLabel+margin+JComboBox)
+     */
+    public static JComponent createLabelCombo(String label, JComboBox comboBox) {
+        JPanel labelCombo = new JPanel();
+        labelCombo.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        JLabel caption = new JLabel(label);
+        caption.setBorder(new EmptyBorder(0, 5, 0, 5));
+        labelCombo.add(caption);
+        labelCombo.add(comboBox);
+        return labelCombo;
+    }
+
+    /**
+     * Stop any editing that is currently being done on the table. This will
+     * save any changes that have already been made.
+     */
+    public static void stopTableEditing(JTable table) {
+        if (table.isEditing()) {
+            TableCellEditor cellEditor = table.getCellEditor(table.getEditingRow(), table.getEditingColumn());
+            cellEditor.stopCellEditing();
+        }
+    }
+    
+    /**
+     * Get pasted text from clipboard
+     * @return String Pasted text
+     * @throws UnsupportedFlavorException
+     * @throws IOException
+     */
+    public static String getPastedText() throws UnsupportedFlavorException, IOException {
+        Clipboard clipboard = Toolkit.getDefaultToolkit().getSystemClipboard();
+        Transferable trans = clipboard.getContents(null);
+        DataFlavor[] flavourList = trans.getTransferDataFlavors();
+        Collection<DataFlavor> flavours = new ArrayList<DataFlavor>(flavourList.length);
+        if (Collections.addAll(flavours, flavourList) && flavours.contains(DataFlavor.stringFlavor)) {
+            return (String) trans.getTransferData(DataFlavor.stringFlavor);
+        } else {
+            return null;
+        }
     }
 }

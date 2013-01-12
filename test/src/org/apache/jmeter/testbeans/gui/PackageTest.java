@@ -47,7 +47,7 @@ import junit.framework.TestSuite;
  * TODO: - Check property files don't have duplicate keys (is this important)
  * 
  */
-public class PackageTest extends JMeterTestCase {
+public final class PackageTest extends JMeterTestCase {
     private static final Logger log = LoggingManager.getLoggerForClass();
 
     // ResourceBundle i18nEdit=
@@ -90,7 +90,7 @@ public class PackageTest extends JMeterTestCase {
             bundle = (ResourceBundle) beanInfo.getBeanDescriptor().getValue(GenericTestBeanCustomizer.RESOURCE_BUNDLE);
         } catch (IntrospectionException e) {
             log.error("Can't get beanInfo for " + testBeanClass.getName(), e);
-            throw new Error(e.toString()); // Programming error. Don't continue.
+            throw new Error(e.toString(), e); // Programming error. Don't continue.
         }
         if (bundle == null) {
             throw new Error("This can't happen!");
@@ -179,7 +179,7 @@ public class PackageTest extends JMeterTestCase {
                         GenericTestBeanCustomizer.RESOURCE_BUNDLE);
             } catch (IntrospectionException e) {
                 log.error("Can't get beanInfo for " + testBeanClass.getName(), e);
-                throw new Error(e.toString()); // Programming error. Don't
+                throw new Error(e.toString(), e); // Programming error. Don't
                                                 // continue.
             }
 

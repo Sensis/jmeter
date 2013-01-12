@@ -19,6 +19,7 @@
 package org.apache.jmeter.save;
 
 import org.apache.jmeter.save.converters.ConversionHelp;
+import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
 
 import com.thoughtworks.xstream.mapper.Mapper;
@@ -37,6 +38,7 @@ public class ScriptWrapperConverter implements Converter {
 
     private static final String ATT_PROPERTIES = "properties"; // $NON-NLS-1$
     private static final String ATT_VERSION = "version"; // $NON-NLS-1$
+    private static final String ATT_JMETER = "jmeter"; // $NON-NLS-1$
 
     /**
      * Returns the converter version; used to check for possible
@@ -55,6 +57,7 @@ public class ScriptWrapperConverter implements Converter {
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean canConvert(@SuppressWarnings("rawtypes") Class arg0) { // superclass is not typed
         return arg0.equals(ScriptWrapper.class);
     }
@@ -62,12 +65,14 @@ public class ScriptWrapperConverter implements Converter {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void marshal(Object arg0, HierarchicalStreamWriter writer, MarshallingContext context) {
         ScriptWrapper wrap = (ScriptWrapper) arg0;
         String version = SaveService.getVERSION();
         ConversionHelp.setOutVersion(version);// Ensure output follows version
         writer.addAttribute(ATT_VERSION, version);
         writer.addAttribute(ATT_PROPERTIES, SaveService.getPropertiesVersion());
+        writer.addAttribute(ATT_JMETER, JMeterUtils.getJMeterVersion());
         writer.startNode(classMapper.serializedClass(wrap.testPlan.getClass()));
         context.convertAnother(wrap.testPlan);
         writer.endNode();
@@ -76,6 +81,7 @@ public class ScriptWrapperConverter implements Converter {
     /**
      * {@inheritDoc}
      */
+    @Override
     public Object unmarshal(HierarchicalStreamReader reader, UnmarshallingContext context) {
         ScriptWrapper wrap = new ScriptWrapper();
         wrap.version = reader.getAttribute(ATT_VERSION);

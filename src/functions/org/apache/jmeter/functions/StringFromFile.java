@@ -26,11 +26,10 @@ import java.util.Collection;
 import java.util.LinkedList;
 import java.util.List;
 
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.engine.util.CompoundVariable;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.samplers.Sampler;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
@@ -64,7 +63,7 @@ import org.apache.log.Logger;
  * Because function instances are shared, it does not make sense to use the thread number as part of the file name.
  * @since 1.9
  */
-public class StringFromFile extends AbstractFunction implements TestListener {
+public class StringFromFile extends AbstractFunction implements TestStateListener {
     private static final Logger log = LoggingManager.getLoggerForClass();
 
     // Only modified by static block so no need to synchronize subsequent read-only access
@@ -144,9 +143,11 @@ public class StringFromFile extends AbstractFunction implements TestListener {
         if (values.length >= PARAM_START) {
             start = ((CompoundVariable) values[PARAM_START - 1]).execute();
             try {
-                myStart = Integer.valueOf(start).intValue();
-            } catch (NumberFormatException e) {
+                // Low chances to be non numeric, we parse
+                myStart = Integer.parseInt(start);
+            } catch(NumberFormatException e) {
                 myStart = COUNT_UNUSED;// Don't process invalid numbers
+                log.warn("Exception parsing "+start + " as int, value will not be considered as Start Number sequence");
             }
         }
         // Have we used myCurrent yet?
@@ -158,12 +159,12 @@ public class StringFromFile extends AbstractFunction implements TestListener {
         if (values.length >= PARAM_END) {
             String tmp = ((CompoundVariable) values[PARAM_END - 1]).execute();
             try {
-                myEnd = Integer.valueOf(tmp).intValue();
-            } catch (NumberFormatException e) {
-                myEnd = COUNT_UNUSED;// Don't process invalid numbers
-                                        // (including "")
+                // Low chances to be non numeric, we parse
+                myEnd = Integer.parseInt(tmp);
+            } catch(NumberFormatException e) {
+                myEnd = COUNT_UNUSED;// Don't process invalid numbers (including "")
+                log.warn("Exception parsing "+tmp + " as int, value will not be considered as End Number sequence");
             }
-
         }
 
         if (values.length >= PARAM_START) {
@@ -306,32 +307,33 @@ public class StringFromFile extends AbstractFunction implements TestListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<String> getArgumentDesc() {
         return desc;
     }
 
     /** {@inheritDoc} */
+    @Override
     public void testStarted() {
         //
     }
 
     /** {@inheritDoc} */
+    @Override
     public void testStarted(String host) {
         //
     }
 
     /** {@inheritDoc} */
+    @Override
     public void testEnded() {
         this.testEnded(""); //$NON-NLS-1$
     }
 
     /** {@inheritDoc} */
+    @Override
     public void testEnded(String host) {
     	closeFile();
     }
 
-    /** {@inheritDoc} */
-    public void testIterationStart(LoopIterationEvent event) {
-        //
-    }
 }

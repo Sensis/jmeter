@@ -68,9 +68,12 @@ public class LongSum extends AbstractFunction {
         }
 
         try {
+            // Has chances to be a var
             sum += Long.parseLong(varName);
             varName = null; // there is no variable name
-        } catch (NumberFormatException ignored) {
+        } catch(NumberFormatException ignored) {
+            // varName keeps its value and sum has not taken 
+            // into account non numeric or overflowing number
         }
 
         String totalString = Long.toString(sum);
@@ -96,6 +99,7 @@ public class LongSum extends AbstractFunction {
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<String> getArgumentDesc() {
         return desc;
     }

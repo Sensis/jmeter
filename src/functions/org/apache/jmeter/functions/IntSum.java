@@ -35,7 +35,6 @@ import org.apache.jmeter.util.JMeterUtils;
  * @since 1.8.1
  */
 public class IntSum extends AbstractFunction {
-
     private static final List<String> desc = new LinkedList<String>();
 
     private static final String KEY = "__intSum"; //$NON-NLS-1$
@@ -69,9 +68,12 @@ public class IntSum extends AbstractFunction {
         }
 
         try {
+            // Has chances to be a var
             sum += Integer.parseInt(varName);
             varName = null; // there is no variable name
-        } catch (NumberFormatException ignored) {
+        } catch(NumberFormatException ignored) {
+            // varName keeps its value and sum has not taken 
+            // into account non numeric or overflowing number
         }
 
         String totalString = Integer.toString(sum);
@@ -97,6 +99,7 @@ public class IntSum extends AbstractFunction {
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<String> getArgumentDesc() {
         return desc;
     }

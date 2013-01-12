@@ -18,12 +18,15 @@
 
 package org.apache.jmeter.save;
 
+import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
+import java.io.FileReader;
 import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.List;
 
 import org.apache.jmeter.junit.JMeterTestCase;
@@ -68,8 +71,8 @@ public class TestSaveService extends JMeterTestCase {
         super(name);
     }
     public void testPropfile() throws Exception {
-        assertTrue("Property Version mismatch", SaveService.checkPropertyVersion());            
-        assertTrue("Property File Version mismatch", SaveService.checkFileVersion());
+        assertTrue("Property Version mismatch, ensure you update SaveService#PROPVERSION field with _version property value from saveservice.properties", SaveService.checkPropertyVersion());            
+        assertTrue("Property File Version mismatch, ensure you update SaveService#FILEVERSION field with revision id of saveservice.properties", SaveService.checkFileVersion());
     }
     
     public void testVersions() throws Exception {
@@ -77,53 +80,58 @@ public class TestSaveService extends JMeterTestCase {
     }
 
     public void testLoadAndSave() throws Exception {
-        byte[] original = new byte[1000000];
-
         boolean failed = false; // Did a test fail?
 
         for (int i = 0; i < FILES.length; i++) {
-            InputStream in = new FileInputStream(findTestFile("testfiles/" + FILES[i]));
-            int len = in.read(original);
+            final File testFile = findTestFile("testfiles/" + FILES[i]);
 
-            in.close();
+            int [] orig = readFile(new BufferedReader(new FileReader(testFile)));
 
-            in = new ByteArrayInputStream(original, 0, len);
-            HashTree tree = SaveService.loadTree(in);
-
-            in.close();
+            InputStream in = null;
+            HashTree tree = null;
+            try {
+                in = new FileInputStream(testFile);
+                tree = SaveService.loadTree(in);
+            } finally {
+                if(in != null) {
+                    in.close();
+                }
+            }
 
             ByteArrayOutputStream out = new ByteArrayOutputStream(1000000);
+            try {
+                SaveService.saveTree(tree, out);
+            } finally {
+                out.close(); // Make sure all the data is flushed out
+            }
 
-            SaveService.saveTree(tree, out);
-            out.close(); // Make sure all the data is flushed out
-
+            ByteArrayInputStream ins = new ByteArrayInputStream(out.toByteArray());
+            
+            int [] output = readFile(new BufferedReader(new InputStreamReader(ins)));
             // We only check the length of the result. Comparing the
             // actual result (out.toByteArray==original) will usually
             // fail, because the order of the properties within each
             // test element may change. Comparing the lengths should be
             // enough to detect most problem cases...
-            int outsz=out.size();
-            // Allow for input in CRLF and output in LF only
-            int lines=0;
-            byte ba[]=out.toByteArray();
-            for(int j=0;j<ba.length;j++) {
-                if (ba[j] == '\n'){
-                    lines++;
-                }
-            }
-            if (len != outsz && len != outsz+lines) {
+            if (orig[0] != output[0] || orig[1] != output[1]) {
                 failed = true;
                 System.out.println();
                 System.out.println("Loading file testfiles/" + FILES[i] + " and "
-                        + "saving it back changes its size from " + len + " to " + outsz + ".");
-                System.out.println("Diff "+(len-outsz)+" lines "+lines);
+                        + "saving it back changes its size from " + orig[0] + " to " + output[0] + ".");
+                System.out.println("Number of lines changes from " + orig[1] + " to " + output[1]);
                 if (saveOut) {
-                    String outfile = "testfiles/" + FILES[i] + ".out";
-                    System.out.println("Write " + outfile);
-                    FileOutputStream outf = new FileOutputStream(new File(outfile));
-                    outf.write(out.toByteArray());
-                    outf.close();
-                    System.out.println("Wrote " + outfile);
+                    final File outFile = findTestFile("testfiles/" + FILES[i] + ".out");
+                    System.out.println("Write " + outFile);
+                    FileOutputStream outf = null;
+                    try {
+                        outf = new FileOutputStream(outFile);
+                        outf.write(out.toByteArray());
+                    } finally {
+                        if(outf != null) {
+                            outf.close();
+                        }
+                    }
+                    System.out.println("Wrote " + outFile);
                 }
             }
 
@@ -138,12 +146,40 @@ public class TestSaveService extends JMeterTestCase {
         }
     }
     
+    /**
+     * Calculate size and line count ignoring EOL and 
+     * "jmeterTestPlan" element which may vary because of 
+     * different attributes/attribute lengths.
+     */
+    private int[] readFile(BufferedReader br) throws Exception {
+        try {
+            int length=0;
+            int lines=0;
+            String line;
+            while((line=br.readLine()) != null) {
+                lines++;
+                if (!line.startsWith("<jmeterTestPlan")) {
+                    length += line.length();
+                }
+            }
+            return new int []{length, lines};
+        } finally {
+            br.close();
+        }
+    }
+
     public void testLoad() throws Exception {
         for (int i = 0; i < FILES_LOAD_ONLY.length; i++) {
-            InputStream in = new FileInputStream(findTestFile("testfiles/" + FILES_LOAD_ONLY[i]));
-            HashTree tree =SaveService.loadTree(in);
-            assertNotNull(tree);
-            in.close();
+            InputStream in = null;
+            try {
+                in = new FileInputStream(findTestFile("testfiles/" + FILES_LOAD_ONLY[i]));
+                HashTree tree =SaveService.loadTree(in);
+                assertNotNull(tree);
+            } finally {
+                if(in != null) {
+                    in.close();
+                }
+            }
         }
 
     }

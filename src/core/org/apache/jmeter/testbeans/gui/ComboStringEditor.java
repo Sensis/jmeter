@@ -66,9 +66,9 @@ class ComboStringEditor extends PropertyEditorSupport implements ItemListener {
      */
     private String initialEditValue;
 
-    private JComboBox combo;
+    private final JComboBox combo;
 
-    private DefaultComboBoxModel model;
+    private final DefaultComboBoxModel model;
 
     private boolean startingEdit = false;
 
@@ -163,6 +163,7 @@ class ComboStringEditor extends PropertyEditorSupport implements ItemListener {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void itemStateChanged(ItemEvent e) {
         if (e.getStateChange() == ItemEvent.SELECTED) {
             if (e.getItem() == EDIT) {
@@ -287,7 +288,7 @@ class ComboStringEditor extends PropertyEditorSupport implements ItemListener {
      * this by using a different type having a controlled .toString().
      */
     private static class UniqueObject {
-        private String s;
+        private final String s;
 
         UniqueObject(String s) {
             this.s = s;

@@ -21,6 +21,7 @@ package org.apache.jmeter.protocol.http.proxy;
 import java.util.Map;
 
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerBase;
+import org.apache.jmeter.samplers.SampleResult;
 
 /**
  * Factory of sampler
@@ -30,7 +31,7 @@ public interface SamplerCreator {
     /**
      * @return String[] array of Content types managed by Factory
      */
-    public String[] getManagedContentTypes();
+    String[] getManagedContentTypes();
 
     /**
      * Create HTTPSamplerBase
@@ -39,7 +40,7 @@ public interface SamplerCreator {
      * @param formEncodings Map<String, String>
      * @return {@link HTTPSamplerBase}
      */
-    public HTTPSamplerBase createSampler(HttpRequestHdr request,
+    HTTPSamplerBase createSampler(HttpRequestHdr request,
             Map<String, String> pageEncodings, Map<String, String> formEncodings);
 
     /**
@@ -50,8 +51,33 @@ public interface SamplerCreator {
      * @param formEncodings Map<String, String>
      * @throws Exception
      */
-    public void populateSampler(HTTPSamplerBase sampler,
+    void populateSampler(HTTPSamplerBase sampler,
             HttpRequestHdr request, Map<String, String> pageEncodings,
             Map<String, String> formEncodings)
+                    throws Exception;
+
+    /**
+     * Post process sampler 
+     * Called after sampling 
+     * @param sampler HTTPSamplerBase
+     * @param result SampleResult
+     * @since 2.9
+     */
+    void postProcessSampler(HTTPSamplerBase sampler, SampleResult result);
+
+    /**
+     * Default implementation calls:
+     * <ol>
+     *  <li>{@link SamplerCreator}{@link #createSampler(HttpRequestHdr, Map, Map)}</li>
+     *  <li>{@link SamplerCreator}{@link #populateSampler(HTTPSamplerBase, HttpRequestHdr, Map, Map)}</li>
+     * </ol>
+     * @param request {@link HttpRequestHdr}
+     * @param pageEncodings Map<String, String>
+     * @param formEncodings Map<String, String>
+     * @return {@link HTTPSamplerBase}
+     * @since 2.9
+     */
+    HTTPSamplerBase createAndPopulateSampler(HttpRequestHdr request,
+            Map<String, String> pageEncodings, Map<String, String> formEncodings)
                     throws Exception;
 }

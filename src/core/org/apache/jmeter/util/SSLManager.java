@@ -18,8 +18,10 @@
 
 package org.apache.jmeter.util;
 
+import java.io.BufferedInputStream;
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.net.HttpURLConnection;
 import java.security.KeyStore;
 import java.security.Provider;
@@ -106,21 +108,21 @@ public abstract class SSLManager {
         if (null == this.keyStore) {
             String fileName = System.getProperty(JAVAX_NET_SSL_KEY_STORE,""); // empty if not provided
             String fileType = System.getProperty(JAVAX_NET_SSL_KEY_STORE_TYPE, // use the system property to determine the type
-                    fileName.toLowerCase(Locale.UK).endsWith(".p12") ? PKCS12 : "JKS"); // otherwise use the name
+                    fileName.toLowerCase(Locale.ENGLISH).endsWith(".p12") ? PKCS12 : "JKS"); // otherwise use the name
             log.info("JmeterKeyStore Location: " + fileName + " type " + fileType);
             try {
                 this.keyStore = JmeterKeyStore.getInstance(fileType, keystoreAliasStartIndex, keystoreAliasEndIndex);
                 log.info("KeyStore created OK");
             } catch (Exception e) {
                 this.keyStore = null;
-                throw new RuntimeException("Could not create keystore: "+e.getMessage());
+                throw new RuntimeException("Could not create keystore: "+e.getMessage(), e);
             }
-            FileInputStream fileInputStream = null;
+            InputStream fileInputStream = null;
             try {
                 File initStore = new File(fileName);
 
                 if (fileName.length() >0 && initStore.exists()) {
-                    fileInputStream = new FileInputStream(initStore);
+                    fileInputStream = new BufferedInputStream(new FileInputStream(initStore));
                     this.keyStore.load(fileInputStream, getPassword());
                     if (log.isInfoEnabled()) {
                         log.info("Total of " + keyStore.getAliasCount() + " aliases loaded OK from keystore");
@@ -152,21 +154,20 @@ public abstract class SSLManager {
     private String getPassword() {
         String password = this.defaultpw;
         if (null == password) {
-            this.defaultpw = System.getProperty(KEY_STORE_PASSWORD);
-
-            if (null == defaultpw) {
-                synchronized (this) {
+            final GuiPackage guiInstance = GuiPackage.getInstance();
+            if (guiInstance != null) {
+                synchronized (this) { // TODO is sync really needed?
                     this.defaultpw = JOptionPane.showInputDialog(
-                            GuiPackage.getInstance().getMainFrame(),
+                            guiInstance.getMainFrame(),
                             JMeterUtils.getResString("ssl_pass_prompt"),  // $NON-NLS-1$
                             JMeterUtils.getResString("ssl_pass_title"),  // $NON-NLS-1$
                             JOptionPane.QUESTION_MESSAGE);
                     System.setProperty(KEY_STORE_PASSWORD, this.defaultpw);
+                    password = this.defaultpw;
                 }
+            } else {
+                log.warn("No password provided, and no GUI present so cannot prompt");
             }
-
-            password = this.defaultpw;
-            System.setProperty(KEY_STORE_PASSWORD, password);
         }
         return password;
     }
@@ -204,15 +205,15 @@ public abstract class SSLManager {
                 log.info("TrustStore created OK, Type: JKS");
             } catch (Exception e) {
                 this.trustStore = null;
-                throw new RuntimeException("Problem creating truststore: "+e.getMessage());
+                throw new RuntimeException("Problem creating truststore: "+e.getMessage(), e);
             }
 
-            FileInputStream fileInputStream = null;
+            InputStream fileInputStream = null;
             try {
                 File initStore = new File(fileName);
 
                 if (initStore.exists()) {
-                    fileInputStream = new FileInputStream(initStore);
+                    fileInputStream = new BufferedInputStream(new FileInputStream(initStore));
                     this.trustStore.load(fileInputStream, null);
                     log.info("Truststore loaded OK from file");
                 } else {
@@ -220,7 +221,7 @@ public abstract class SSLManager {
                     this.trustStore.load(null, null);
                 }
             } catch (Exception e) {
-                throw new RuntimeException("Can't load TrustStore: " + e.toString());
+                throw new RuntimeException("Can't load TrustStore: " + e.getMessage(), e);
             } finally {
                 JOrphanUtils.closeQuietly(fileInputStream);
             }

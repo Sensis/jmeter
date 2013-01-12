@@ -47,12 +47,12 @@ public class HeaderManager extends ConfigTestElement implements Serializable {
 
     public static final String HEADERS = "HeaderManager.headers";// $NON-NLS-1$
 
-    private final static String[] COLUMN_RESOURCE_NAMES = {
+    private static final String[] COLUMN_RESOURCE_NAMES = {
           "name",             // $NON-NLS-1$
           "value"             // $NON-NLS-1$
         };
 
-    private final static int COLUMN_COUNT = COLUMN_RESOURCE_NAMES.length;
+    private static final int COLUMN_COUNT = COLUMN_RESOURCE_NAMES.length;
 
 
     /**
@@ -138,7 +138,7 @@ public class HeaderManager extends ConfigTestElement implements Serializable {
             String line;
             while ((line = reader.readLine()) != null) {
                 try {
-                    if (line.startsWith("#") || line.trim().length() == 0) {// $NON-NLS-1$
+                    if (line.startsWith("#") || JOrphanUtils.isBlank(line)) {// $NON-NLS-1$
                         continue;
                     }
                     String[] st = JOrphanUtils.split(line, "\t", " ");// $NON-NLS-1$ $NON-NLS-2$

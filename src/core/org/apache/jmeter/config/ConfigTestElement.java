@@ -26,9 +26,9 @@ import org.apache.jmeter.testelement.TestElement;
 public class ConfigTestElement extends AbstractTestElement implements Serializable, ConfigElement {
     private static final long serialVersionUID = 240L;
 
-    public final static String USERNAME = "ConfigTestElement.username";
+    public static final String USERNAME = "ConfigTestElement.username";
 
-    public final static String PASSWORD = "ConfigTestElement.password";
+    public static final String PASSWORD = "ConfigTestElement.password";
 
     public ConfigTestElement() {
     }
@@ -43,6 +43,7 @@ public class ConfigTestElement extends AbstractTestElement implements Serializab
     /**
      * {@inheritDoc}
      */
+    @Override
     public void addConfigElement(ConfigElement config) {
         mergeIn((TestElement) config);
     }
@@ -50,6 +51,7 @@ public class ConfigTestElement extends AbstractTestElement implements Serializab
     /**
      * {@inheritDoc}
      */
+    @Override
     public boolean expectsModification() {
         return false;
     }

@@ -171,11 +171,16 @@ public class SaveService {
 
     // This is written to JMX files by ScriptWrapperConverter
     private static String propertiesVersion = "";// read from properties file; written to JMX files
-    private static final String PROPVERSION = "2.3";// Expected version $NON-NLS-1$
+    
+    // Must match _version property value in saveservice.properties
+    // used to ensure saveservice.properties and SaveService are updated simultaneously
+    private static final String PROPVERSION = "2.4";// Expected version $NON-NLS-1$
 
     // Internal information only
     private static String fileVersion = ""; // read from saveservice.properties file// $NON-NLS-1$
-    private static final String FILEVERSION = "1332608"; // Expected value $NON-NLS-1$
+    // Must match Revision id value in saveservice.properties, 
+    // used to ensure saveservice.properties and SaveService are updated simultaneously
+    private static final String FILEVERSION = "1427507"; // Expected value $NON-NLS-1$
     private static String fileEncoding = ""; // read from properties file// $NON-NLS-1$
 
     static {

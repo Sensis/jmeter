@@ -39,6 +39,7 @@ import org.apache.jmeter.testelement.property.PropertyIterator;
 import org.apache.jmeter.testelement.property.StringProperty;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.Data;
+import org.apache.jorphan.gui.GuiUtils;
 
 /**
  * Default config gui for Configuration Element.
@@ -57,9 +58,6 @@ public class SimpleConfigGui extends AbstractConfigGui implements ActionListener
 
     /** The model for the parameter table. */
     private PowerTableModel tableModel;
-
-    /** A button for adding new parameters to the table. */
-    private JButton add;
 
     /** A button for removing parameters from the table. */
     private JButton delete;
@@ -104,6 +102,7 @@ public class SimpleConfigGui extends AbstractConfigGui implements ActionListener
         init();
     }
 
+    @Override
     public String getLabelResource() {
         return "simple_config_element"; // $NON-NLS-1$
     }
@@ -133,6 +132,7 @@ public class SimpleConfigGui extends AbstractConfigGui implements ActionListener
     }
 
     /* Implements JMeterGUIComponent.createTestElement() */
+    @Override
     public TestElement createTestElement() {
         TestElement el = new ConfigTestElement();
         modifyTestElement(el);
@@ -146,10 +146,9 @@ public class SimpleConfigGui extends AbstractConfigGui implements ActionListener
      * @param el
      *            the TestElement to modify
      */
+    @Override
     public void modifyTestElement(TestElement el) {
-        if (table.isEditing()) {
-            table.getCellEditor().stopCellEditing();
-        }
+        GuiUtils.stopTableEditing(table);
         Data model = tableModel.getData();
         model.reset();
         while (model.next()) {
@@ -183,6 +182,7 @@ public class SimpleConfigGui extends AbstractConfigGui implements ActionListener
      * @param e
      *            the event that has occurred
      */
+    @Override
     public void actionPerformed(ActionEvent e) {
         String action = e.getActionCommand();
         if (action.equals(DELETE)) {
@@ -214,7 +214,8 @@ public class SimpleConfigGui extends AbstractConfigGui implements ActionListener
      * @return a GUI panel containing the buttons
      */
     private JPanel createButtonPanel() {
-        add = new JButton(JMeterUtils.getResString("add")); //$NON-NLS-1$
+        /** A button for adding new parameters to the table. */
+        JButton add = new JButton(JMeterUtils.getResString("add")); //$NON-NLS-1$
         add.setActionCommand(ADD);
         add.addActionListener(this);
         add.setEnabled(true);
@@ -250,7 +251,7 @@ public class SimpleConfigGui extends AbstractConfigGui implements ActionListener
     protected void addArgument() {
         // If a table cell is being edited, we should accept the current value
         // and stop the editing before adding a new row.
-        stopTableEditing();
+        GuiUtils.stopTableEditing(table);
 
         tableModel.addNewRow();
         tableModel.fireTableDataChanged();
@@ -268,12 +269,9 @@ public class SimpleConfigGui extends AbstractConfigGui implements ActionListener
      * save any changes that have already been made.
      */
     protected void stopTableEditing() {
-        if (table.isEditing()) {
-            TableCellEditor cellEditor = table.getCellEditor(table.getEditingRow(), table.getEditingColumn());
-            cellEditor.stopCellEditing();
-        }
+        GuiUtils.stopTableEditing(table);
     }
-
+    
     /**
      * Remove the currently selected argument from the table.
      */

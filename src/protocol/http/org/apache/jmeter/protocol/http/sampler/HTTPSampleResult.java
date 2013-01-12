@@ -21,7 +21,7 @@ package org.apache.jmeter.protocol.http.sampler;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.samplers.SampleResult;
 
 /**
@@ -94,12 +94,27 @@ public class HTTPSampleResult extends SampleResult {
      * @return true iif res is an HTTP redirect response
      */
     public boolean isRedirect() {
-        final String[] REDIRECT_CODES = { "301", "302", "303" }; // NOT 304!
+        /*
+         * Don't redirect the following:
+         * 304 = Not Modified
+         * 305 = Use Proxy
+         * 306 = (Unused)
+         */
+        final String[] REDIRECT_CODES = { "301", "302", "303" };
         String code = getResponseCode();
         for (int i = 0; i < REDIRECT_CODES.length; i++) {
             if (REDIRECT_CODES[i].equals(code)) {
                 return true;
             }
+        }
+        // http://www.w3.org/Protocols/rfc2616/rfc2616-sec10.html
+        // If the 307 status code is received in response to a request other than GET or HEAD, 
+        // the user agent MUST NOT automatically redirect the request unless it can be confirmed by the user,
+        // since this might change the conditions under which the request was issued.
+        // See Bug 54119
+        if ("307".equals(code) && 
+                (HTTPConstants.GET.equals(getHTTPMethod()) || HTTPConstants.HEAD.equals(getHTTPMethod()))) {
+            return true;
         }
         return false;
     }
@@ -118,8 +133,8 @@ public class HTTPSampleResult extends SampleResult {
             sb.append(' ');
             sb.append(u.toString());
             sb.append("\n");
-            // Include request body if it is a post or put
-            if (HTTPConstantsInterface.POST.equals(method) || HTTPConstantsInterface.PUT.equals(method)) {
+            // Include request body if it is a post or put or patch
+            if (HTTPConstants.POST.equals(method) || HTTPConstants.PUT.equals(method) || HTTPConstants.PATCH.equals(method)) {
                 sb.append("\n"+method+" data:\n");
                 sb.append(queryString);
                 sb.append("\n");
@@ -200,7 +215,7 @@ public class HTTPSampleResult extends SampleResult {
             int tagstart=prefix.indexOf(METATAG);
             if (tagstart!=-1){
                 tagstart += METATAG.length();
-                int tagend = prefix.indexOf("\"", tagstart); // $NON-NLS-1$
+                int tagend = prefix.indexOf('\"', tagstart); // $NON-NLS-1$
                 if (tagend!=-1){
                     // TODO use fixed charset:
                     final String ct = new String(bytes,tagstart,tagend-tagstart); // TODO - charset?

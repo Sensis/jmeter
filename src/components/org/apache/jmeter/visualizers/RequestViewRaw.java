@@ -43,6 +43,7 @@ public class RequestViewRaw implements RequestView {
     /* (non-Javadoc)
      * @see org.apache.jmeter.visualizers.request.RequestView#init()
      */
+    @Override
     public void init() {
         paneRaw = new JPanel(new BorderLayout(0, 5));
         sampleDataField = new JTextArea();
@@ -57,6 +58,7 @@ public class RequestViewRaw implements RequestView {
     /* (non-Javadoc)
      * @see org.apache.jmeter.visualizers.request.RequestView#clearData()
      */
+    @Override
     public void clearData() {
         sampleDataField.setText(""); //$NON-NLS-1$
     }
@@ -64,26 +66,27 @@ public class RequestViewRaw implements RequestView {
     /* (non-Javadoc)
      * @see org.apache.jmeter.visualizers.request.RequestView#setSamplerResult(java.lang.Object)
      */
+    @Override
     public void setSamplerResult(Object objectResult) {
 
         if (objectResult instanceof SampleResult) {
             SampleResult sampleResult = (SampleResult) objectResult;
-            // load time label
+            String rh = sampleResult.getRequestHeaders();
+            StringBuilder sb = new StringBuilder();
             String sd = sampleResult.getSamplerData();
             if (sd != null) {
-                String rh = sampleResult.getRequestHeaders();
-                // Don't display Request headers label if rh is null or empty
-                if (rh != null && rh.length() > 0) {
-                    StringBuilder sb = new StringBuilder(sd.length()
-                            + rh.length() + 20);
-                    sb.append(sd);
-                    sb.append("\n"); //$NON-NLS-1$
-                    sb.append(JMeterUtils.getResString("view_results_request_headers")); //$NON-NLS-1$
-                    sb.append("\n"); //$NON-NLS-1$
-                    sb.append(rh);
-                    sd = sb.toString();
-                }
-                sampleDataField.setText(sd);
+                sb.append(sd);
+                sb.append("\n"); //$NON-NLS-1$
+            } 
+            // Don't display Request headers label if rh is null or empty
+            if (rh != null && rh.length() > 0) {
+                sb.append(JMeterUtils.getResString("view_results_request_headers")); //$NON-NLS-1$
+                sb.append("\n"); //$NON-NLS-1$
+                sb.append(rh);
+                sb.append("\n"); //$NON-NLS-1$
+            }
+            if (sb.length() > 0) {
+                sampleDataField.setText(sb.toString());
             } else {
                 // add a message when no request data (ex. Java request)
                 sampleDataField.setText(JMeterUtils
@@ -95,6 +98,7 @@ public class RequestViewRaw implements RequestView {
     /* (non-Javadoc)
      * @see org.apache.jmeter.visualizers.request.RequestView#getPanel()
      */
+    @Override
     public JPanel getPanel() {
         return paneRaw;
     }
@@ -102,6 +106,7 @@ public class RequestViewRaw implements RequestView {
     /* (non-Javadoc)
      * @see org.apache.jmeter.visualizers.request.RequestView#getLabel()
      */
+    @Override
     public String getLabel() {
         return JMeterUtils.getResString(KEY_LABEL);
     }

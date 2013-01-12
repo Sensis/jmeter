@@ -28,11 +28,9 @@ import java.rmi.server.RemoteObject;
 import java.util.Properties;
 
 import org.apache.jmeter.services.FileServer;
-import org.apache.jmeter.testelement.TestListener;
 import org.apache.jmeter.threads.JMeterContextService;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.collections.HashTree;
-import org.apache.jorphan.collections.SearchByClass;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
 
@@ -71,6 +69,7 @@ public class ClientJMeterEngine implements JMeterEngine {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void configure(HashTree testTree) {
         TreeCloner cloner = new TreeCloner(false);
         testTree.traverse(cloner);
@@ -78,6 +77,7 @@ public class ClientJMeterEngine implements JMeterEngine {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void stopTest(boolean now) {
         log.info("about to "+(now ? "stop" : "shutdown")+" remote test on "+host);
         try {
@@ -88,6 +88,7 @@ public class ClientJMeterEngine implements JMeterEngine {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void reset() {
         try {
             try {
@@ -102,17 +103,14 @@ public class ClientJMeterEngine implements JMeterEngine {
         }
     }
 
+    @Override
     public void runTest() throws JMeterEngineException {
         log.info("running clientengine run method");
-        SearchByClass<TestListener> testListeners = new SearchByClass<TestListener>(TestListener.class);
-        ConvertListeners sampleListeners = new ConvertListeners();
         HashTree testTree = test;
-        PreCompiler compiler = new PreCompiler(true); // limit the changes to client only test elements
         synchronized(testTree) {
-            testTree.traverse(compiler);
+            testTree.traverse(new PreCompiler(true));  // limit the changes to client only test elements
             testTree.traverse(new TurnElementsOn());
-            testTree.traverse(testListeners);
-            testTree.traverse(sampleListeners);
+            testTree.traverse(new ConvertListeners());
         }
 
         String methodName="unknown";
@@ -161,8 +159,8 @@ public class ClientJMeterEngine implements JMeterEngine {
      * @param logger where to log the information
      */
     public static void tidyRMI(Logger logger) {
+        String reaperRE = JMeterUtils.getPropDefault("rmi.thread.name", "^RMI Reaper$");
         for(Thread t : Thread.getAllStackTraces().keySet()){
-            String reaperRE = JMeterUtils.getPropDefault("rmi.thread.name", "^RMI Reaper$");
             String name = t.getName();
             if (name.matches(reaperRE)) {
                 logger.info("Interrupting "+name);
@@ -173,6 +171,7 @@ public class ClientJMeterEngine implements JMeterEngine {
 
     /** {@inheritDoc} */
     // Called by JMeter ListenToTest if remoteStop is true
+    @Override
     public void exit() {
         log.info("about to exit remote server on "+host);
         try {
@@ -184,11 +183,13 @@ public class ClientJMeterEngine implements JMeterEngine {
 
     private Properties savep;
     /** {@inheritDoc} */
+    @Override
     public void setProperties(Properties p) {
         savep = p;
         // Sent later
     }
 
+    @Override
     public boolean isActive() {
         return true;
     }

@@ -20,23 +20,34 @@ package org.apache.jmeter.protocol.http.proxy;
 
 import java.io.File;
 import java.io.IOException;
+import java.io.StringReader;
 import java.net.MalformedURLException;
 import java.net.URL;
 import java.util.Map;
 
+import javax.xml.parsers.ParserConfigurationException;
+import javax.xml.parsers.SAXParser;
+import javax.xml.parsers.SAXParserFactory;
+
 import org.apache.commons.io.FileUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
+import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.protocol.http.config.MultipartUrlConfig;
 import org.apache.jmeter.protocol.http.control.gui.HttpTestSampleGui;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerBase;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerFactory;
 import org.apache.jmeter.protocol.http.sampler.PostWriter;
 import org.apache.jmeter.protocol.http.util.ConversionUtils;
-import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.protocol.http.util.HTTPFileArg;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
+import org.xml.sax.InputSource;
+import org.xml.sax.SAXException;
+import org.xml.sax.SAXParseException;
+import org.xml.sax.XMLReader;
+import org.xml.sax.helpers.DefaultHandler;
 
 /**
  * Default implementation that handles classical HTTP textual + Multipart requests
@@ -53,6 +64,7 @@ public class DefaultSamplerCreator extends AbstractSamplerCreator {
     /**
      * @see org.apache.jmeter.protocol.http.proxy.SamplerCreator#getManagedContentTypes()
      */
+    @Override
     public String[] getManagedContentTypes() {
         return new String[0];
     }
@@ -61,6 +73,7 @@ public class DefaultSamplerCreator extends AbstractSamplerCreator {
      * 
      * @see org.apache.jmeter.protocol.http.proxy.SamplerCreator#createSampler(org.apache.jmeter.protocol.http.proxy.HttpRequestHdr, java.util.Map, java.util.Map)
      */
+    @Override
     public HTTPSamplerBase createSampler(HttpRequestHdr request,
             Map<String, String> pageEncodings, Map<String, String> formEncodings) {
         // Instantiate the sampler
@@ -81,6 +94,7 @@ public class DefaultSamplerCreator extends AbstractSamplerCreator {
     /**
      * @see org.apache.jmeter.protocol.http.proxy.SamplerCreator#populateSampler(org.apache.jmeter.protocol.http.sampler.HTTPSamplerBase, org.apache.jmeter.protocol.http.proxy.HttpRequestHdr, java.util.Map, java.util.Map)
      */
+    @Override
     public final void populateSampler(HTTPSamplerBase sampler,
             HttpRequestHdr request, Map<String, String> pageEncodings,
             Map<String, String> formEncodings) throws Exception{
@@ -89,6 +103,10 @@ public class DefaultSamplerCreator extends AbstractSamplerCreator {
         computeFromPostBody(sampler, request);
         if (log.isDebugEnabled()) {
             log.debug("sampler path = " + sampler.getPath());
+        }
+        Arguments arguments = sampler.getArguments();
+        if(arguments.getArgumentCount() == 1 && arguments.getArgument(0).getName().length()==0) {
+            sampler.setPostBodyRaw(true);
         }
     }
 
@@ -130,7 +148,7 @@ public class DefaultSamplerCreator extends AbstractSamplerCreator {
         // If it was a HTTP GET request, then all parameters in the URL
         // has been handled by the sampler.setPath above, so we just need
         // to do parse the rest of the request if it is not a GET request
-        if((!HTTPConstantsInterface.CONNECT.equals(request.getMethod())) && (!HTTPConstantsInterface.GET.equals(request.getMethod()))) {
+        if((!HTTPConstants.CONNECT.equals(request.getMethod())) && (!HTTPConstants.GET.equals(request.getMethod()))) {
             // Check if it was a multipart http post request
             final String contentType = request.getContentType();
             MultipartUrlConfig urlConfig = request.getMultipartConfig(contentType);
@@ -170,9 +188,13 @@ public class DefaultSamplerCreator extends AbstractSamplerCreator {
                 // Set the file uploads
                 sampler.setHTTPFiles(urlConfig.getHTTPFileArgs().asArray());
             // used when postData is pure xml (eg. an xml-rpc call) or for PUT
-            } else if (postData.trim().startsWith("<?") || "PUT".equals(sampler.getMethod())) {
+            } else if (postData.trim().startsWith("<?") 
+                    || HTTPConstants.PUT.equals(sampler.getMethod())
+                    || isPotentialXml(postData)) {
                 sampler.addNonEncodedArgument("", postData, "");
-            } else if (contentType == null || contentType.startsWith(HTTPConstantsInterface.APPLICATION_X_WWW_FORM_URLENCODED) ){
+            } else if (contentType == null || 
+                    (contentType.startsWith(HTTPConstants.APPLICATION_X_WWW_FORM_URLENCODED) && 
+                            !isBinaryContent(contentType))) {
                 // It is the most common post request, with parameter name and values
                 // We also assume this if no content type is present, to be most backwards compatible,
                 // but maybe we should only parse arguments if the content type is as expected
@@ -197,13 +219,65 @@ public class DefaultSamplerCreator extends AbstractSamplerCreator {
     }
 
     /**
+     * Tries parsing to see if content is xml
+     * @param postData String
+     * @return boolean
+     */
+    private static final boolean isPotentialXml(String postData) {
+        try {
+            SAXParserFactory spf = SAXParserFactory.newInstance();
+            SAXParser saxParser = spf.newSAXParser();
+            XMLReader xmlReader = saxParser.getXMLReader();
+            ErrorDetectionHandler detectionHandler =
+                    new ErrorDetectionHandler();
+            xmlReader.setContentHandler(detectionHandler);
+            xmlReader.setErrorHandler(detectionHandler);
+            xmlReader.parse(new InputSource(new StringReader(postData)));
+            return !detectionHandler.isErrorDetected();
+        } catch (ParserConfigurationException e) {
+            return false;
+        } catch (SAXException e) {
+            return false;
+        } catch (IOException e) {
+            return false;
+        }
+    }
+    
+    private static final class ErrorDetectionHandler extends DefaultHandler {
+        private boolean errorDetected = false;
+        public ErrorDetectionHandler() {
+            super();
+        }
+        /* (non-Javadoc)
+         * @see org.xml.sax.helpers.DefaultHandler#error(org.xml.sax.SAXParseException)
+         */
+        @Override
+        public void error(SAXParseException e) throws SAXException {
+            this.errorDetected = true;
+        }
+
+        /* (non-Javadoc)
+         * @see org.xml.sax.helpers.DefaultHandler#fatalError(org.xml.sax.SAXParseException)
+         */
+        @Override
+        public void fatalError(SAXParseException e) throws SAXException {
+            this.errorDetected = true;
+        }
+        /**
+         * @return the errorDetected
+         */
+        public boolean isErrorDetected() {
+            return errorDetected;
+        }
+    }
+    /**
      * Compute sampler name
      * @param sampler {@link HTTPSamplerBase}
      * @param request {@link HttpRequestHdr}
      */
     protected void computeSamplerName(HTTPSamplerBase sampler,
             HttpRequestHdr request) {
-        if (!HTTPConstantsInterface.CONNECT.equals(request.getMethod()) && isNumberRequests()) {
+        if (!HTTPConstants.CONNECT.equals(request.getMethod()) && isNumberRequests()) {
             incrementRequestNumber();
             sampler.setName(getRequestNumber() + " " + sampler.getPath());
         } else {

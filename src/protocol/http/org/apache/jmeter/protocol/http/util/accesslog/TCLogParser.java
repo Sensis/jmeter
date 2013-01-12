@@ -79,6 +79,15 @@ import org.apache.log.Logger;
 public class TCLogParser implements LogParser {
     protected static final Logger log = LoggingManager.getLoggerForClass();
 
+    /*
+     * TODO should these fields be public?
+     * They don't appear to be used externally.
+     * 
+     * Also, are they any different from HTTPConstants.GET etc. ?
+     * In some cases they seem to be used as the method name from the Tomcat log.
+     * However the RMETHOD field is used as the value for HTTPSamplerBase.METHOD,
+     * for which HTTPConstants is most approriate.
+     */
     public static final String GET = "GET";
 
     public static final String POST = "POST";
@@ -162,6 +171,7 @@ public class TCLogParser implements LogParser {
      *
      * @param filter
      */
+    @Override
     public void setFilter(Filter filter) {
         FILTER = filter;
     }
@@ -171,6 +181,7 @@ public class TCLogParser implements LogParser {
      *
      * @param source
      */
+    @Override
     public void setSourceFile(String source) {
         this.FILENAME = source;
     }
@@ -221,6 +232,7 @@ public class TCLogParser implements LogParser {
      * @param count
      * @return lines parsed
      */
+    @Override
     public int parseAndConfigure(int count, TestElement el) {
         return this.parse(el, count);
     }
@@ -343,7 +355,7 @@ public class TCLogParser implements LogParser {
         // if the string contains atleast one double
         // quote and checkMethod is true, go ahead
         // and tokenize the string.
-        if (entry.indexOf("\"") > -1 && checkMethod(entry)) {
+        if (entry.indexOf('"') > -1 && checkMethod(entry)) {
             StringTokenizer tokens = null;
             // we tokenize using double quotes. this means
             // for tomcat we should have 3 tokens if there
@@ -413,7 +425,7 @@ public class TCLogParser implements LogParser {
      * @return String parameters
      */
     public String stripFile(String url, TestElement el) {
-        if (url.indexOf("?") > -1) {
+        if (url.indexOf('?') > -1) {
             StringTokenizer tokens = this.tokenize(url, "?");
             this.URL_PATH = tokens.nextToken();
             el.setProperty(HTTPSamplerBase.PATH, URL_PATH);
@@ -431,7 +443,7 @@ public class TCLogParser implements LogParser {
      * @return boolean
      */
     public boolean checkURL(String url) {
-        if (url.indexOf("?") > -1) {
+        if (url.indexOf('?') > -1) {
             return true;
         }
         return false;
@@ -445,7 +457,7 @@ public class TCLogParser implements LogParser {
      * @return boolean
      */
     public boolean checkParamFormat(String text) {
-        if (text.indexOf("&") > -1 && text.indexOf("=") > -1) {
+        if (text.indexOf('&') > -1 && text.indexOf('=') > -1) {
             return true;
         }
         return false;
@@ -546,6 +558,7 @@ public class TCLogParser implements LogParser {
         return new StringTokenizer(line, delim);
     }
 
+    @Override
     public void close() {
         try {
             this.READER.close();

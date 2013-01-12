@@ -20,9 +20,10 @@ package org.apache.jmeter.save;
 
 import java.io.BufferedReader;
 import java.io.CharArrayWriter;
-import java.io.FileReader;
+import java.io.FileInputStream;
 import java.io.FileWriter;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.io.StringReader;
 import java.text.DateFormat;
 import java.text.ParseException;
@@ -34,8 +35,8 @@ import java.util.List;
 import javax.swing.table.DefaultTableModel;
 
 import org.apache.commons.collections.map.LinkedMap;
-import org.apache.commons.lang.CharUtils;
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.CharUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.assertions.AssertionResult;
 import org.apache.jmeter.reporters.ResultCollector;
 import org.apache.jmeter.samplers.SampleEvent;
@@ -128,7 +129,8 @@ public final class CSVSaveService {
         final boolean errorsOnly = resultCollector.isErrorLogging();
         final boolean successOnly = resultCollector.isSuccessOnlyLogging();
         try {
-            dataReader = new BufferedReader(new FileReader(filename)); // TODO Charset ?
+            dataReader = new BufferedReader(new InputStreamReader(
+                    new FileInputStream(filename), SaveService.getFileEncoding("UTF-8"))); 
             dataReader.mark(400);// Enough to read the header column names
             // Get the first line, and see if it is the header
             String line = dataReader.readLine();
@@ -152,11 +154,12 @@ public final class CSVSaveService {
             // CSV output files should never contain empty lines, so probably
             // not
             // If so, then need to check whether the reader is at EOF
+            SimpleDateFormat dateFormat = new SimpleDateFormat(DEFAULT_DATE_FORMAT_STRING);
             while ((parts = csvReadFile(dataReader, delim)).length != 0) {
                 lineNumber++;
                 SampleEvent event = CSVSaveService
                         .makeResultFromDelimitedString(parts, saveConfig,
-                                lineNumber);
+                                lineNumber, dateFormat);
                 if (event != null) {
                     final SampleResult result = event.getResult();
                     if (ResultCollector.isSampleWanted(result.isSuccessful(),
@@ -178,15 +181,15 @@ public final class CSVSaveService {
      * @param saveConfig
      *            the save configuration (may be updated)
      * @param lineNumber
+     * @param dateFormat
      * @return the sample result
      * 
      * @throws JMeterError
      */
     private static SampleEvent makeResultFromDelimitedString(
-            final String[] parts, final SampleSaveConfiguration saveConfig, // may
-                                                                            // be
-                                                                            // updated
-            final long lineNumber) {
+            final String[] parts, 
+            final SampleSaveConfiguration saveConfig, // may be updated
+            final long lineNumber, DateFormat dateFormat) {
 
         SampleResult result = null;
         String hostname = "";// $NON-NLS-1$
@@ -195,8 +198,6 @@ public final class CSVSaveService {
         String text = null;
         String field = null; // Save the name for error reporting
         int i = 0;
-        final DateFormat DEFAULT_DATE_FORMAT = new SimpleDateFormat(
-                DEFAULT_DATE_FORMAT_STRING);
         try {
             if (saveConfig.saveTimestamp()) {
                 field = TIME_STAMP;
@@ -208,11 +209,11 @@ public final class CSVSaveService {
                         log.warn(e.toString());
                         // method is only ever called from one thread at a time
                         // so it's OK to use a static DateFormat
-                        Date stamp = DEFAULT_DATE_FORMAT.parse(text);
+                        Date stamp = dateFormat.parse(text);
                         timeStamp = stamp.getTime();
                         log.warn("Setting date format to: "
                                 + DEFAULT_DATE_FORMAT_STRING);
-                        saveConfig.setFormatter(DEFAULT_DATE_FORMAT);
+                        saveConfig.setFormatter(dateFormat);
                     }
                 } else if (saveConfig.formatter() != null) {
                     Date stamp = saveConfig.formatter().parse(text);
@@ -753,6 +754,65 @@ public final class CSVSaveService {
         return resultToDelimitedString(event, event.getResult().getSaveConfig()
                 .getDelimiter());
     }
+    
+    /*
+     * Class to handle generating the delimited string. - adds the delimiter
+     * if not the first call - quotes any strings that require it
+     */
+    static final class StringQuoter {
+        private final StringBuilder sb;
+        private final char[] specials;
+        private boolean addDelim;
+
+        public StringQuoter(char delim) {
+            sb = new StringBuilder(100);
+            specials = new char[] { delim, QUOTING_CHAR, CharUtils.CR,
+                    CharUtils.LF };
+            addDelim = false; // Don't add delimiter first time round
+        }
+
+        private void addDelim() {
+            if (addDelim) {
+                sb.append(specials[0]);
+            } else {
+                addDelim = true;
+            }
+        }
+
+        // These methods handle parameters that could contain delimiters or
+        // quotes:
+        public void append(String s) {
+            addDelim();
+            // if (s == null) return;
+            sb.append(quoteDelimiters(s, specials));
+        }
+
+        public void append(Object obj) {
+            append(String.valueOf(obj));
+        }
+
+        // These methods handle parameters that cannot contain delimiters or
+        // quotes
+        public void append(int i) {
+            addDelim();
+            sb.append(i);
+        }
+
+        public void append(long l) {
+            addDelim();
+            sb.append(l);
+        }
+
+        public void append(boolean b) {
+            addDelim();
+            sb.append(b);
+        }
+
+        @Override
+        public String toString() {
+            return sb.toString();
+        }
+    }
 
     /**
      * Convert a result into a string, where the fields of the result are
@@ -766,65 +826,6 @@ public final class CSVSaveService {
      */
     public static String resultToDelimitedString(SampleEvent event,
             final String delimiter) {
-
-        /*
-         * Class to handle generating the delimited string. - adds the delimiter
-         * if not the first call - quotes any strings that require it
-         */
-        final class StringQuoter {
-            final StringBuilder sb = new StringBuilder();
-            private final char[] specials;
-            private boolean addDelim;
-
-            public StringQuoter(char delim) {
-                specials = new char[] { delim, QUOTING_CHAR, CharUtils.CR,
-                        CharUtils.LF };
-                addDelim = false; // Don't add delimiter first time round
-            }
-
-            private void addDelim() {
-                if (addDelim) {
-                    sb.append(specials[0]);
-                } else {
-                    addDelim = true;
-                }
-            }
-
-            // These methods handle parameters that could contain delimiters or
-            // quotes:
-            public void append(String s) {
-                addDelim();
-                // if (s == null) return;
-                sb.append(quoteDelimiters(s, specials));
-            }
-
-            public void append(Object obj) {
-                append(String.valueOf(obj));
-            }
-
-            // These methods handle parameters that cannot contain delimiters or
-            // quotes
-            public void append(int i) {
-                addDelim();
-                sb.append(i);
-            }
-
-            public void append(long l) {
-                addDelim();
-                sb.append(l);
-            }
-
-            public void append(boolean b) {
-                addDelim();
-                sb.append(b);
-            }
-
-            @Override
-            public String toString() {
-                return sb.toString();
-            }
-        }
-
         StringQuoter text = new StringQuoter(delimiter.charAt(0));
 
         SampleResult sample = event.getResult();
@@ -914,14 +915,18 @@ public final class CSVSaveService {
             text.append(sample.getDataEncodingWithDefault());
         }
 
-        if (saveConfig.saveSampleCount()) {// Need both sample and error count
-                                           // to be any use
+        if (saveConfig.saveSampleCount()) {
+            // Need both sample and error count to be any use
             text.append(sample.getSampleCount());
             text.append(sample.getErrorCount());
         }
 
         if (saveConfig.saveHostname()) {
             text.append(event.getHostname());
+        }
+
+        if (saveConfig.saveIdleTime()) {
+            text.append(event.getResult().getIdleTime());
         }
 
         for (int i = 0; i < SampleEvent.getVarCount(); i++) {
@@ -992,14 +997,13 @@ public final class CSVSaveService {
      * <p>
      * Handles DOS (CRLF), Unix (LF), and Mac (CR) line-endings equally.
      * <p>
-     * N.B. a blank line is returned as a zero length array, whereas "" is
-     * returned as an empty string. This is inconsistent.
-     * 
+     * A blank line - or a quoted blank line - both return an array containing
+     * a single empty String.
      * @param infile
      *            input file - must support mark(1)
      * @param delim
      *            delimiter (e.g. comma)
-     * @return array of strings
+     * @return array of strings, will be empty if there is no data, i.e. if the input is at EOF.
      * @throws IOException
      *             also for unexpected quote characters
      */
@@ -1076,8 +1080,7 @@ public final class CSVSaveService {
         } // while not EOF
         if (ch == -1) {// EOF (or end of string) so collect any remaining data
             if (state == QUOTED) {
-                throw new IOException(state
-                        + " Missing trailing quote-char in quoted field:[\""
+                throw new IOException("Missing trailing quote-char in quoted field:[\""
                         + baos.toString() + "]");
             }
             // Do we have some data, or a trailing empty field?

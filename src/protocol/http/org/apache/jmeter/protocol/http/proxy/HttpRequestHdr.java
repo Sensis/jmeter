@@ -26,13 +26,13 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.StringTokenizer;
 
-import org.apache.commons.lang.CharUtils;
+import org.apache.commons.lang3.CharUtils;
 import org.apache.jmeter.protocol.http.config.MultipartUrlConfig;
 import org.apache.jmeter.protocol.http.control.Header;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.gui.HeaderPanel;
 import org.apache.jmeter.protocol.http.sampler.HTTPSamplerBase;
-import org.apache.jmeter.protocol.http.util.HTTPConstantsInterface;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
@@ -161,7 +161,7 @@ public class HttpRequestHdr {
             log.debug("parsed version:" + version);
         }
         // SSL connection
-        if (getMethod().startsWith(HTTPConstantsInterface.CONNECT)) {
+        if (getMethod().startsWith(HTTPConstants.CONNECT)) {
             paramHttps = url;
         }
         if (url.startsWith("/")) {
@@ -193,7 +193,7 @@ public class HttpRequestHdr {
         for (String key : headers.keySet()) {
             if (!key.equals(PROXY_CONNECTION)
              && !key.equals(CONTENT_LENGTH)
-             && !key.equalsIgnoreCase(HTTPConstantsInterface.HEADER_CONNECTION)) {
+             && !key.equalsIgnoreCase(HTTPConstants.HEADER_CONNECTION)) {
                 manager.add(headers.get(key));
             }
         }
@@ -219,7 +219,7 @@ public class HttpRequestHdr {
     }
 
     private boolean isMultipart(String contentType) {
-        if (contentType != null && contentType.startsWith(HTTPConstantsInterface.MULTIPART_FORM_DATA)) {
+        if (contentType != null && contentType.startsWith(HTTPConstants.MULTIPART_FORM_DATA)) {
             return true;
         }
         return false;
@@ -251,12 +251,12 @@ public class HttpRequestHdr {
             str = str.substring(i + 2);
         }
         // chop to server.name:xx
-        i = str.indexOf("/"); // $NON-NLS-1$
+        i = str.indexOf('/'); // $NON-NLS-1$
         if (0 < i) {
             str = str.substring(0, i);
         }
         // chop to server.name
-        i = str.lastIndexOf(":"); // $NON-NLS-1$
+        i = str.lastIndexOf(':'); // $NON-NLS-1$
         if (0 < i) {
             str = str.substring(0, i);
         }
@@ -282,12 +282,12 @@ public class HttpRequestHdr {
             str = str.substring(i + 2);
         }
         // chop to server.name:xx
-        i = str.indexOf("/");
+        i = str.indexOf('/');
         if (0 < i) {
             str = str.substring(0, i);
         }
         // chop to server.name
-        i = str.lastIndexOf(":");
+        i = str.lastIndexOf(':');
         if (0 < i) {
             return Integer.parseInt(str.substring(i + 1).trim());
         }
@@ -305,7 +305,7 @@ public class HttpRequestHdr {
         if (i > 0) {
             str = str.substring(i + 2);
         }
-        i = str.indexOf("/");
+        i = str.indexOf('/');
         if (i < 0) {
             return "";
         }
@@ -394,12 +394,12 @@ public class HttpRequestHdr {
      */
     public String getProtocol(HTTPSamplerBase sampler) {
         if (url.indexOf("//") > -1) {
-            String protocol = url.substring(0, url.indexOf(":"));
+            String protocol = url.substring(0, url.indexOf(':'));
             if (log.isDebugEnabled()) {
                 log.debug("Proxy: setting protocol to : " + protocol);
             }
             return protocol;
-        } else if (sampler.getPort() == HTTPConstantsInterface.DEFAULT_HTTPS_PORT) {
+        } else if (sampler.getPort() == HTTPConstants.DEFAULT_HTTPS_PORT) {
             if (log.isDebugEnabled()) {
                 log.debug("Proxy: setting protocol to https");
             }

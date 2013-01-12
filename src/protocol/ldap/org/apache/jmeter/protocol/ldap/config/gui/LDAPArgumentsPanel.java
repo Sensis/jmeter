@@ -40,6 +40,7 @@ import org.apache.jmeter.gui.util.HeaderAsPropertyRenderer;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.property.PropertyIterator;
 import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jorphan.gui.GuiUtils;
 import org.apache.jorphan.gui.ObjectTableModel;
 import org.apache.jorphan.reflect.Functor;
 
@@ -66,9 +67,6 @@ public class LDAPArgumentsPanel extends AbstractConfigGui implements ActionListe
     /** The model for the arguments table. */
     // needs to be accessible from test code
     transient ObjectTableModel tableModel; // Only contains LDAPArgument entries
-
-    /** A button for adding new arguments to the table. */
-    private JButton add;
 
     /** A button for removing arguments from the table. */
     private JButton delete;
@@ -116,11 +114,13 @@ public class LDAPArgumentsPanel extends AbstractConfigGui implements ActionListe
         return null;
     }
 
+    @Override
     public String getLabelResource() {
         return "ldapext_sample_title"; // $NON-NLS-1$
     }
 
     /* Implements JMeterGUIComponent.createTestElement() */
+    @Override
     public TestElement createTestElement() {
         LDAPArguments args = new LDAPArguments();
         modifyTestElement(args);
@@ -130,8 +130,9 @@ public class LDAPArgumentsPanel extends AbstractConfigGui implements ActionListe
     }
 
     /* Implements JMeterGUIComponent.modifyTestElement(TestElement) */
+    @Override
     public void modifyTestElement(TestElement args) {
-        stopTableEditing();
+        GuiUtils.stopTableEditing(table);
         LDAPArguments arguments = null;
         if (args instanceof LDAPArguments) {
             arguments = (LDAPArguments) args;
@@ -197,6 +198,7 @@ public class LDAPArgumentsPanel extends AbstractConfigGui implements ActionListe
      * @param e
      *            the event that has occurred
      */
+    @Override
     public void actionPerformed(ActionEvent e) {
         String action = e.getActionCommand();
         if (action.equals(DELETE)) {
@@ -247,7 +249,7 @@ public class LDAPArgumentsPanel extends AbstractConfigGui implements ActionListe
     private void addArgument() {
         // If a table cell is being edited, we should accept the current value
         // and stop the editing before adding a new row.
-        stopTableEditing();
+        GuiUtils.stopTableEditing(table);
 
         tableModel.addRow(makeNewLDAPArgument());
 
@@ -266,17 +268,6 @@ public class LDAPArgumentsPanel extends AbstractConfigGui implements ActionListe
      */
     private LDAPArgument makeNewLDAPArgument() {
         return new LDAPArgument("", "", "");
-    }
-
-    /**
-     * Stop any editing that is currently being done on the table. This will
-     * save any changes that have already been made.
-     */
-    private void stopTableEditing() {
-        if (table.isEditing()) {
-            TableCellEditor cellEditor = table.getCellEditor(table.getEditingRow(), table.getEditingColumn());
-            cellEditor.stopCellEditing();
-        }
     }
 
     /**
@@ -306,14 +297,14 @@ public class LDAPArgumentsPanel extends AbstractConfigGui implements ActionListe
      * Functor("setAlwaysEncoded"), new Functor("setUseEquals") }, new Class[] {
      * String.class, String.class, Boolean.class, Boolean.class }); }
      */
-    /**
-     * Resize the table columns to appropriate widths.
-     *
-     * @param _table
-     *            the table to resize columns for
-     */
-    private void sizeColumns(JTable _table) {
-    }
+//    /**
+//     * Resize the table columns to appropriate widths.
+//     *
+//     * @param _table
+//     *            the table to resize columns for
+//     */
+//    private void sizeColumns(JTable _table) {
+//    }
 
     /**
      * Create the main GUI panel which contains the argument table.
@@ -345,7 +336,8 @@ public class LDAPArgumentsPanel extends AbstractConfigGui implements ActionListe
      * @return a GUI panel containing the buttons
      */
     private JPanel makeButtonPanel() {
-        add = new JButton(JMeterUtils.getResString("add")); //$NON-NLS-1$
+        /** A button for adding new arguments to the table. */
+        JButton add = new JButton(JMeterUtils.getResString("add")); //$NON-NLS-1$
         add.setActionCommand(ADD);
         add.setEnabled(true);
 
@@ -376,6 +368,6 @@ public class LDAPArgumentsPanel extends AbstractConfigGui implements ActionListe
         add(makeButtonPanel(), BorderLayout.SOUTH);
 
         table.revalidate();
-        sizeColumns(table);
+        //sizeColumns(table);
     }
 }

@@ -45,6 +45,7 @@ import org.apache.commons.httpclient.SimpleHttpConnectionManager;
 import org.apache.commons.httpclient.auth.AuthScope;
 import org.apache.commons.httpclient.cookie.CookiePolicy;
 import org.apache.commons.httpclient.methods.DeleteMethod;
+import org.apache.commons.httpclient.methods.EntityEnclosingMethod;
 import org.apache.commons.httpclient.methods.FileRequestEntity;
 import org.apache.commons.httpclient.methods.GetMethod;
 import org.apache.commons.httpclient.methods.HeadMethod;
@@ -71,6 +72,7 @@ import org.apache.jmeter.protocol.http.control.CookieManager;
 import org.apache.jmeter.protocol.http.control.HeaderManager;
 import org.apache.jmeter.protocol.http.util.EncoderCache;
 import org.apache.jmeter.protocol.http.util.HTTPArgument;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.protocol.http.util.HTTPFileArg;
 import org.apache.jmeter.protocol.http.util.LoopbackHttpClientSocketFactory;
 import org.apache.jmeter.protocol.http.util.SlowHttpClientSocketFactory;
@@ -111,8 +113,8 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
         log.info("HTTP request retry count = "+RETRY_COUNT);
         if (CPS_HTTP > 0) {
             log.info("Setting up HTTP SlowProtocol, cps="+CPS_HTTP);
-            Protocol.registerProtocol(PROTOCOL_HTTP,
-                    new Protocol(PROTOCOL_HTTP,new SlowHttpClientSocketFactory(CPS_HTTP),DEFAULT_HTTP_PORT));
+            Protocol.registerProtocol(HTTPConstants.PROTOCOL_HTTP,
+                    new Protocol(HTTPConstants.PROTOCOL_HTTP,new SlowHttpClientSocketFactory(CPS_HTTP),HTTPConstants.DEFAULT_HTTP_PORT));
         }
 
         // Now done in JsseSSLManager (which needs to register the protocol)
@@ -202,26 +204,33 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
         res.sampleStart(); // Count the retries as well in the time
         try {
             // May generate IllegalArgumentException
-            if (method.equals(POST)) {
+            if (method.equals(HTTPConstants.POST)) {
                 httpMethod = new PostMethod(urlStr);
-            } else if (method.equals(PUT)){
+            } else if (method.equals(HTTPConstants.PUT)){
                 httpMethod = new PutMethod(urlStr);
-            } else if (method.equals(HEAD)){
+            } else if (method.equals(HTTPConstants.HEAD)){
                 httpMethod = new HeadMethod(urlStr);
-            } else if (method.equals(TRACE)){
+            } else if (method.equals(HTTPConstants.TRACE)){
                 httpMethod = new TraceMethod(urlStr);
-            } else if (method.equals(OPTIONS)){
+            } else if (method.equals(HTTPConstants.OPTIONS)){
                 httpMethod = new OptionsMethod(urlStr);
-            } else if (method.equals(DELETE)){
+            } else if (method.equals(HTTPConstants.DELETE)){
                 httpMethod = new DeleteMethod(urlStr);
-            } else if (method.equals(GET)){
+            } else if (method.equals(HTTPConstants.GET)){
                 httpMethod = new GetMethod(urlStr);
+            } else if (method.equals(HTTPConstants.PATCH)){
+                httpMethod = new EntityEnclosingMethod(urlStr) {
+                    @Override
+                    public String getName() { // HC3.1 does not have the method
+                        return "PATCH";
+                    }
+                };
             } else {
                 throw new IllegalArgumentException("Unexpected method: "+method);
             }
 
             final CacheManager cacheManager = getCacheManager();
-            if (cacheManager != null && GET.equalsIgnoreCase(method)) {
+            if (cacheManager != null && HTTPConstants.GET.equalsIgnoreCase(method)) {
                if (cacheManager.inCache(url)) {
                    res.sampleEnd();
                    res.setResponseNoContent();
@@ -238,11 +247,11 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
             savedClient = client;
 
             // Handle the various methods
-            if (method.equals(POST)) {
+            if (method.equals(HTTPConstants.POST)) {
                 String postBody = sendPostData((PostMethod)httpMethod);
                 res.setQueryString(postBody);
-            } else if (method.equals(PUT)) {
-                String putBody = sendPutData((PutMethod)httpMethod);
+            } else if (method.equals(HTTPConstants.PUT) || method.equals(HTTPConstants.PATCH)) {
+                String putBody = sendEntityData((EntityEnclosingMethod) httpMethod);
                 res.setQueryString(putBody);
             }
 
@@ -257,8 +266,8 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
             if (instream != null) {// will be null for HEAD
                 instream = new CountingInputStream(instream);
                 try {
-                    Header responseHeader = httpMethod.getResponseHeader(HEADER_CONTENT_ENCODING);
-                    if (responseHeader!= null && ENCODING_GZIP.equals(responseHeader.getValue())) {
+                    Header responseHeader = httpMethod.getResponseHeader(HTTPConstants.HEADER_CONTENT_ENCODING);
+                    if (responseHeader!= null && HTTPConstants.ENCODING_GZIP.equals(responseHeader.getValue())) {
                         InputStream tmpInput = new GZIPInputStream(instream); // tmp inputstream needs to have a good counting
                         res.setResponseData(readResponse(res, tmpInput, (int) httpMethod.getResponseContentLength()));                        
                     } else {
@@ -283,7 +292,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
             res.setResponseMessage(httpMethod.getStatusText());
 
             String ct = null;
-            Header h = httpMethod.getResponseHeader(HEADER_CONTENT_TYPE);
+            Header h = httpMethod.getResponseHeader(HTTPConstants.HEADER_CONTENT_TYPE);
             if (h != null)// Can be missing, e.g. on redirect
             {
                 ct = h.getValue();
@@ -293,7 +302,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
 
             res.setResponseHeaders(getResponseHeaders(httpMethod));
             if (res.isRedirect()) {
-                final Header headerLocation = httpMethod.getResponseHeader(HEADER_LOCATION);
+                final Header headerLocation = httpMethod.getResponseHeader(HTTPConstants.HEADER_LOCATION);
                 if (headerLocation == null) { // HTTP protocol violation, but avoids NPE
                     throw new IllegalArgumentException("Missing location header");
                 }
@@ -330,10 +339,17 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
             return res;
         } catch (IllegalArgumentException e) { // e.g. some kinds of invalid URL
             res.sampleEnd();
+            // pick up headers if failed to execute the request
+            // httpMethod can be null if method is unexpected
+            if(httpMethod != null) {
+                res.setRequestHeaders(getConnectionHeaders(httpMethod));
+            }
             errorResult(e, res);
             return res;
         } catch (IOException e) {
             res.sampleEnd();
+            // pick up headers if failed to execute the request
+            res.setRequestHeaders(getConnectionHeaders(httpMethod));
             errorResult(e, res);
             return res;
         } finally {
@@ -353,7 +369,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
         int headerSize = httpMethod.getStatusLine().toString().length()+2; // add a \r\n
         Header[] rh = httpMethod.getResponseHeaders();
         for (int i = 0; i < rh.length; i++) {
-            headerSize += (rh[i]).toString().length(); // already include the \r\n
+            headerSize += rh[i].toString().length(); // already include the \r\n
         }
         headerSize += 2; // last \r\n before response data
         return headerSize;
@@ -384,10 +400,10 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
 
         String schema = uri.getScheme();
         if ((schema == null) || (schema.length()==0)) {
-            schema = PROTOCOL_HTTP;
+            schema = HTTPConstants.PROTOCOL_HTTP;
         }
 
-        if (PROTOCOL_HTTPS.equalsIgnoreCase(schema)){
+        if (HTTPConstants.PROTOCOL_HTTPS.equalsIgnoreCase(schema)){
             SSLManager.getInstance(); // ensure the manager is initialised
             // we don't currently need to do anything further, as this sets the default https protocol
         }
@@ -497,9 +513,9 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
         // leave it to the server to close the connection after their
         // timeout period. Leave it to the JMeter user to decide.
         if (getUseKeepAlive()) {
-            httpMethod.setRequestHeader(HEADER_CONNECTION, KEEP_ALIVE);
+            httpMethod.setRequestHeader(HTTPConstants.HEADER_CONNECTION, HTTPConstants.KEEP_ALIVE);
         } else {
-            httpMethod.setRequestHeader(HEADER_CONNECTION, CONNECTION_CLOSE);
+            httpMethod.setRequestHeader(HTTPConstants.HEADER_CONNECTION, HTTPConstants.CONNECTION_CLOSE);
         }
 
         setConnectionHeaders(httpMethod, u, getHeaderManager(), getCacheManager());
@@ -560,7 +576,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
         if (cookieManager != null) {
             cookieHeader = cookieManager.getCookieHeaderForURL(u);
             if (cookieHeader != null) {
-                method.setRequestHeader(HEADER_COOKIE, cookieHeader);
+                method.setRequestHeader(HTTPConstants.HEADER_COOKIE, cookieHeader);
             }
         }
         return cookieHeader;
@@ -593,9 +609,9 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
                     // Don't allow override of Content-Length
                     // This helps with SoapSampler hack too
                     // TODO - what other headers are not allowed?
-                    if (! HEADER_CONTENT_LENGTH.equalsIgnoreCase(n)){
+                    if (! HTTPConstants.HEADER_CONTENT_LENGTH.equalsIgnoreCase(n)){
                         String v = header.getValue();
-                        if (HEADER_HOST.equalsIgnoreCase(n)) {
+                        if (HTTPConstants.HEADER_HOST.equalsIgnoreCase(n)) {
                             v = v.replaceFirst(":\\d+$",""); // remove any port specification // $NON-NLS-1$ $NON-NLS-2$
                             method.getParams().setVirtualHost(v);
                         } else {
@@ -623,7 +639,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
         Header[] requestHeaders = method.getRequestHeaders();
         for(int i = 0; i < requestHeaders.length; i++) {
             // Exclude the COOKIE header, since cookie is reported separately in the sample
-            if(!HEADER_COOKIE.equalsIgnoreCase(requestHeaders[i].getName())) {
+            if(!HTTPConstants.HEADER_COOKIE.equalsIgnoreCase(requestHeaders[i].getName())) {
                 hdrs.append(requestHeaders[i].getName());
                 hdrs.append(": "); // $NON-NLS-1$
                 hdrs.append(requestHeaders[i].getValue());
@@ -748,7 +764,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
 
             // Set the content type
             String multiPartContentType = multiPart.getContentType();
-            post.setRequestHeader(HEADER_CONTENT_TYPE, multiPartContentType);
+            post.setRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE, multiPartContentType);
 
             // If the Multipart is repeatable, we can send it first to
             // our own stream, without the actual file content, so we can return it
@@ -785,7 +801,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
         else {
             // Check if the header manager had a content type header
             // This allows the user to specify his own content-type for a POST request
-            Header contentTypeHeader = post.getRequestHeader(HEADER_CONTENT_TYPE);
+            Header contentTypeHeader = post.getRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE);
             boolean hasContentTypeHeader = contentTypeHeader != null && contentTypeHeader.getValue() != null && contentTypeHeader.getValue().length() > 0;
             // If there are no arguments, we can send a file as the body of the request
             // TODO: needs a multiple file upload scenerio
@@ -795,10 +811,10 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
                 if(!hasContentTypeHeader) {
                     // Allow the mimetype of the file to control the content type
                     if(file.getMimeType() != null && file.getMimeType().length() > 0) {
-                        post.setRequestHeader(HEADER_CONTENT_TYPE, file.getMimeType());
+                        post.setRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE, file.getMimeType());
                     }
                     else {
-                        post.setRequestHeader(HEADER_CONTENT_TYPE, APPLICATION_X_WWW_FORM_URLENCODED);
+                        post.setRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE, HTTPConstants.APPLICATION_X_WWW_FORM_URLENCODED);
                     }
                 }
 
@@ -833,11 +849,11 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
                     if(!hasContentTypeHeader) {
                         HTTPFileArg file = files.length > 0? files[0] : null;
                         if(file != null && file.getMimeType() != null && file.getMimeType().length() > 0) {
-                            post.setRequestHeader(HEADER_CONTENT_TYPE, file.getMimeType());
+                            post.setRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE, file.getMimeType());
                         }
                         else {
                              // TODO - is this the correct default?
-                            post.setRequestHeader(HEADER_CONTENT_TYPE, APPLICATION_X_WWW_FORM_URLENCODED);
+                            post.setRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE, HTTPConstants.APPLICATION_X_WWW_FORM_URLENCODED);
                         }
                     }
 
@@ -854,7 +870,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
                         }
                         postBody.append(value);
                     }
-                    StringRequestEntity requestEntity = new StringRequestEntity(postBody.toString(), post.getRequestHeader(HEADER_CONTENT_TYPE).getValue(), contentEncoding);
+                    StringRequestEntity requestEntity = new StringRequestEntity(postBody.toString(), post.getRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE).getValue(), contentEncoding);
                     post.setRequestEntity(requestEntity);
                 }
                 else {
@@ -862,7 +878,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
 
                     // Set the content type
                     if(!hasContentTypeHeader) {
-                        post.setRequestHeader(HEADER_CONTENT_TYPE, APPLICATION_X_WWW_FORM_URLENCODED);
+                        post.setRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE, HTTPConstants.APPLICATION_X_WWW_FORM_URLENCODED);
                     }
                     // Add the parameters
                     PropertyIterator args = getArguments().iterator();
@@ -924,22 +940,22 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
             }
         }
         // Set the content length
-        post.setRequestHeader(HEADER_CONTENT_LENGTH, Long.toString(post.getRequestEntity().getContentLength()));
+        post.setRequestHeader(HTTPConstants.HEADER_CONTENT_LENGTH, Long.toString(post.getRequestEntity().getContentLength()));
 
         return postedBody.toString();
     }
 
     /**
-     * Set up the PUT data
+     * Set up the PUT/PATCH data
      */
-    private String sendPutData(PutMethod put) throws IOException {
+    private String sendEntityData(EntityEnclosingMethod put) throws IOException {
         // Buffer to hold the put body, except file content
         StringBuilder putBody = new StringBuilder(1000);
         boolean hasPutBody = false;
 
         // Check if the header manager had a content type header
         // This allows the user to specify his own content-type for a POST request
-        Header contentTypeHeader = put.getRequestHeader(HEADER_CONTENT_TYPE);
+        Header contentTypeHeader = put.getRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE);
         boolean hasContentTypeHeader = contentTypeHeader != null && contentTypeHeader.getValue() != null && contentTypeHeader.getValue().length() > 0;
         HTTPFileArg files[] = getHTTPFiles();
 
@@ -951,9 +967,6 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
             // If getSendFileAsPostBody returned true, it's sure that file is not null
             FileRequestEntity fileRequestEntity = new FileRequestEntity(new File(files[0].getPath()),null);
             put.setRequestEntity(fileRequestEntity);
-
-            // We just add placeholder text for file content
-            putBody.append("<actual file content, not shown here>");
         }
         // If none of the arguments have a name specified, we
         // just send all the values as the put body
@@ -986,7 +999,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
             }
             String contentTypeValue = null;
             if(hasContentTypeHeader) {
-                contentTypeValue = put.getRequestHeader(HEADER_CONTENT_TYPE).getValue();
+                contentTypeValue = put.getRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE).getValue();
             }
             StringRequestEntity requestEntity = new StringRequestEntity(putBodyContent.toString(), contentTypeValue, put.getRequestCharSet());
             put.setRequestEntity(requestEntity);
@@ -1013,14 +1026,13 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
                 // TODO: needs a multiple file upload scenerio
                 HTTPFileArg file = files.length > 0? files[0] : null;
                 if(file != null && file.getMimeType() != null && file.getMimeType().length() > 0) {
-                    put.setRequestHeader(HEADER_CONTENT_TYPE, file.getMimeType());
+                    put.setRequestHeader(HTTPConstants.HEADER_CONTENT_TYPE, file.getMimeType());
                 }
             }
             // Set the content length
-            put.setRequestHeader(HEADER_CONTENT_LENGTH, Long.toString(put.getRequestEntity().getContentLength()));
-            return putBody.toString();
+            put.setRequestHeader(HTTPConstants.HEADER_CONTENT_LENGTH, Long.toString(put.getRequestEntity().getContentLength()));
         }
-        return null;
+        return putBody.toString();
     }
 
     /**
@@ -1065,7 +1077,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
      */
     protected void saveConnectionCookies(HttpMethod method, URL u, CookieManager cookieManager) {
         if (cookieManager != null) {
-            Header hdr[] = method.getResponseHeaders(HEADER_SET_COOKIE);
+            Header hdr[] = method.getResponseHeaders(HTTPConstants.HEADER_SET_COOKIE);
             for (int i = 0; i < hdr.length; i++) {
                 cookieManager.addCookieFromHeader(hdr[i].getValue(),u);
             }
@@ -1101,6 +1113,7 @@ public class HTTPHC3Impl extends HTTPHCAbstractImpl {
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean interrupt() {
         HttpClient client = savedClient;
         if (client != null) {

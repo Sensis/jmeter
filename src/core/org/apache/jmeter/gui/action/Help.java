@@ -29,6 +29,7 @@ import javax.swing.JDialog;
 import javax.swing.JScrollPane;
 
 import org.apache.jmeter.gui.GuiPackage;
+import org.apache.jmeter.gui.util.EscapeDialog;
 import org.apache.jmeter.swing.HtmlPane;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.gui.ComponentUtil;
@@ -67,9 +68,10 @@ public class Help implements Command {
     /**
      * @see org.apache.jmeter.gui.action.Command#doAction(ActionEvent)
      */
+    @Override
     public void doAction(ActionEvent e) {
         if (helpWindow == null) {
-            helpWindow = new JDialog(new Frame(),// independent frame to
+            helpWindow = new EscapeDialog(new Frame(),// independent frame to
                                                     // allow it to be overlaid
                                                     // by the main frame
                     JMeterUtils.getResString("help"),//$NON-NLS-1$
@@ -104,6 +106,7 @@ public class Help implements Command {
     /**
      * @see org.apache.jmeter.gui.action.Command#getActionNames()
      */
+    @Override
     public Set<String> getActionNames() {
         return commands;
     }

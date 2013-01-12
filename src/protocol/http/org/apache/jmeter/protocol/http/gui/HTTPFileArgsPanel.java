@@ -152,7 +152,7 @@ public class HTTPFileArgsPanel extends JPanel implements ActionListener {
      * @param testElement
      */
     public void modifyTestElement(TestElement testElement) {
-        stopTableEditing();
+        GuiUtils.stopTableEditing(table);
         if (testElement instanceof HTTPSamplerBase) {
             HTTPSamplerBase base = (HTTPSamplerBase) testElement;
             int rows = tableModel.getRowCount();
@@ -208,7 +208,7 @@ public class HTTPFileArgsPanel extends JPanel implements ActionListener {
      * Clear all rows from the table.
      */
     public void clear() {
-        stopTableEditing();
+        GuiUtils.stopTableEditing(table);
         tableModel.clearData();
     }
 
@@ -219,6 +219,7 @@ public class HTTPFileArgsPanel extends JPanel implements ActionListener {
      * @param e
      *  the event that has occurred
      */
+    @Override
     public void actionPerformed(ActionEvent e) {
         String action = e.getActionCommand();
         if (action.equals(ADD)) {
@@ -285,7 +286,7 @@ public class HTTPFileArgsPanel extends JPanel implements ActionListener {
     private void addFile(String path) {
         // If a table cell is being edited, we should accept the current value
         // and stop the editing before adding a new row.
-        stopTableEditing();
+        GuiUtils.stopTableEditing(table);
 
         tableModel.addRow(new HTTPFileArg(path));
 
@@ -321,12 +322,9 @@ public class HTTPFileArgsPanel extends JPanel implements ActionListener {
      * save any changes that have already been made.
      */
     protected void stopTableEditing() {
-        if (table.isEditing()) {
-            TableCellEditor cellEditor = table.getCellEditor(table.getEditingRow(), table.getEditingColumn());
-            cellEditor.stopCellEditing();
-        }
+        GuiUtils.stopTableEditing(table);
     }
-
+    
     /**
      * Create the main GUI panel which contains the file table.
      *

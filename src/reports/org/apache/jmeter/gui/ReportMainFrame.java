@@ -24,7 +24,6 @@ import java.awt.Dimension;
 import java.awt.Font;
 import java.awt.Insets;
 import java.awt.event.ActionEvent;
-import java.awt.event.ActionListener;
 import java.awt.event.WindowAdapter;
 import java.awt.event.WindowEvent;
 
@@ -49,13 +48,10 @@ import javax.swing.tree.DefaultTreeCellRenderer;
 import javax.swing.tree.TreeCellRenderer;
 import javax.swing.tree.TreeModel;
 
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.gui.util.ReportMenuBar;
 import org.apache.jmeter.report.gui.action.ReportActionRouter;
 import org.apache.jmeter.report.gui.tree.ReportCellRenderer;
 import org.apache.jmeter.report.gui.tree.ReportTreeListener;
-import org.apache.jmeter.samplers.Remoteable;
-import org.apache.jmeter.testelement.TestListener;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.gui.ComponentUtil;
 import org.apache.jorphan.logging.LoggingManager;
@@ -66,7 +62,7 @@ import org.apache.log.Logger;
  * but with changes for the report gui.
  *
  */
-public class ReportMainFrame extends JFrame implements TestListener, Remoteable {
+public class ReportMainFrame extends JFrame {
 
     private static final long serialVersionUID = 240L;
 
@@ -92,7 +88,7 @@ public class ReportMainFrame extends JFrame implements TestListener, Remoteable 
     //private ImageIcon runningIcon = JMeterUtils.getImage("thread.enabled.gif");
 
     /** An image which is displayed when a test is not currently running. */
-    private ImageIcon stoppedIcon = JMeterUtils.getImage("thread.disabled.gif");// $NON-NLS-1$
+    private final ImageIcon stoppedIcon = JMeterUtils.getImage("thread.disabled.gif");// $NON-NLS-1$
 
     /** The x coordinate of the last location where a component was dragged. */
     private int previousDragXLocation = 0;
@@ -119,14 +115,12 @@ public class ReportMainFrame extends JFrame implements TestListener, Remoteable 
     /**
      * Create a new JMeter frame.
      *
-     * @param actionHandler
-     *            this parameter is not used
      * @param treeModel
      *            the model for the test tree
      * @param treeListener
      *            the listener for the test tree
      */
-    public ReportMainFrame(ActionListener actionHandler, TreeModel treeModel,
+    public ReportMainFrame(TreeModel treeModel,
             ReportTreeListener treeListener) {
         runningIndicator = new JButton(stoppedIcon);
         runningIndicator.setMargin(new Insets(0, 0, 0, 0));
@@ -247,6 +241,7 @@ public class ReportMainFrame extends JFrame implements TestListener, Remoteable 
         stoppingMessage.pack();
         ComponentUtil.centerComponentInComponent(this, stoppingMessage);
         SwingUtilities.invokeLater(new Runnable() {
+            @Override
             public void run() {
                 if (stoppingMessage != null) {
                     stoppingMessage.setVisible(true);
@@ -261,53 +256,6 @@ public class ReportMainFrame extends JFrame implements TestListener, Remoteable 
 
     public JTree getTree() {
         return this.tree;
-    }
-
-    // TestListener implementation
-
-    /**
-     * Not sure if this should be in the ReportMainFrame, since the
-     * report component doesn't really test, it generates reports. for
-     * now, I will use it to trigger reporting. Later we can refactor
-     * MainFrame and create an abstract base class.
-     */
-    public void testStarted() {
-
-        // super.testStarted();
-    }
-
-    /**
-     * Not sure if this should be in the ReportMainFrame, since the
-     * report component doesn't really test, it generates reports. for
-     * now, I will use it to trigger reporting. Later we can refactor
-     * MainFrame and create an abstract base class.
-     */
-    public void testStarted(String host) {
-        // super.testStarted(host);
-    }
-
-    /**
-     * Not sure if this should be in the ReportMainFrame, since the
-     * report component doesn't really test, it generates reports. for
-     * now, I will use it to trigger reporting. Later we can refactor
-     * MainFrame and create an abstract base class.
-     */
-    public void testEnded() {
-        // super.testEnded();
-    }
-
-    /**
-     * Not sure if this should be in the ReportMainFrame, since the
-     * report component doesn't really test, it generates reports. for
-     * now, I will use it to trigger reporting. Later we can refactor
-     * MainFrame and create an abstract base class.
-     */
-    public void testEnded(String host) {
-        // super.testEnded(host);
-    }
-
-    /* Implements TestListener#testIterationStart(LoopIterationEvent) */
-    public void testIterationStart(LoopIterationEvent event) {
     }
 
     /**
@@ -350,7 +298,7 @@ public class ReportMainFrame extends JFrame implements TestListener, Remoteable 
 
         // allow for windows / chars in filename
         String temp = fname.replace('\\', '/'); // $NON-NLS-1$ // $NON-NLS-2$
-        String simpleName = temp.substring(temp.lastIndexOf("/") + 1);// $NON-NLS-1$
+        String simpleName = temp.substring(temp.lastIndexOf('/') + 1);// $NON-NLS-1$
         setTitle(simpleName + " (" + fname + ") - " + DEFAULT_TITLE); // $NON-NLS-1$ // $NON-NLS-2$
     }
 

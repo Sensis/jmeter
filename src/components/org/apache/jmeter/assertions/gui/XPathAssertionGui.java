@@ -21,6 +21,7 @@ package org.apache.jmeter.assertions.gui;
 import java.awt.BorderLayout;
 
 import javax.swing.BorderFactory;
+import javax.swing.Box;
 import javax.swing.JPanel;
 
 import org.apache.jmeter.assertions.XPathAssertion;
@@ -37,12 +38,14 @@ public class XPathAssertionGui extends AbstractAssertionGui {
     private XMLConfPanel xml;
 
     public XPathAssertionGui() {
+        super();
         init();
     }
 
     /**
      * Returns the label to be shown within the JTree-Component.
      */
+    @Override
     public String getLabelResource() {
         return "xpath_assertion_title"; //$NON-NLS-1$
     }
@@ -50,6 +53,7 @@ public class XPathAssertionGui extends AbstractAssertionGui {
     /**
      * Create test element
      */
+    @Override
     public TestElement createTestElement() {
         XPathAssertion el = new XPathAssertion();
         modifyTestElement(el);
@@ -64,6 +68,7 @@ public class XPathAssertionGui extends AbstractAssertionGui {
     public void configure(TestElement el) {
         super.configure(el);
         XPathAssertion assertion = (XPathAssertion) el;
+        showScopeSettings(assertion, true);
         xpath.setXPath(assertion.getXPathString());
         xpath.setNegated(assertion.isNegated());
 
@@ -75,7 +80,10 @@ public class XPathAssertionGui extends AbstractAssertionGui {
         setBorder(makeBorder());
 
         add(makeTitlePanel());
-
+        Box box = Box.createVerticalBox();
+        box.add(createScopePanel(true));
+        add(box);
+        
         // USER_INPUT
         JPanel sizePanel = new JPanel(new BorderLayout());
         sizePanel.setBorder(BorderFactory.createEmptyBorder(0, 10, 10, 10));
@@ -97,10 +105,12 @@ public class XPathAssertionGui extends AbstractAssertionGui {
      *
      * @see org.apache.jmeter.gui.JMeterGUIComponent#modifyTestElement(TestElement)
      */
+    @Override
     public void modifyTestElement(TestElement el) {
         super.configureTestElement(el);
         if (el instanceof XPathAssertion) {
             XPathAssertion assertion = (XPathAssertion) el;
+            saveScopeSettings(assertion);
             assertion.setNegated(xpath.isNegated());
             assertion.setXPathString(xpath.getXPath());
             xml.modifyTestElement(assertion);

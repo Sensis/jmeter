@@ -34,7 +34,7 @@ import org.apache.log.Logger;
  * Use this Keystore for JMeter specific KeyStores.
  *
  */
-public class JmeterKeyStore {
+public final class JmeterKeyStore {
 
     private static final Logger LOG = LoggingManager.getLoggerForClass();
 
@@ -44,7 +44,7 @@ public class JmeterKeyStore {
 
     private X509Certificate[][] certChains;
     private PrivateKey[] keys;
-    private String[] names;
+    private String[] names = new String[0]; // default empty array to prevent NPEs
 
     //@GuardedBy("this")
     private int last_user;
@@ -62,7 +62,8 @@ public class JmeterKeyStore {
      * Process the input stream
      */
     public void load(InputStream is, String pword) throws Exception {
-        store.load(is, pword.toCharArray());
+        char pw[] = pword==null ? null : pword.toCharArray();
+        store.load(is, pw);
     
         ArrayList<String> v_names = new ArrayList<String>();
         ArrayList<PrivateKey> v_keys = new ArrayList<PrivateKey>();
@@ -75,8 +76,8 @@ public class JmeterKeyStore {
             while (aliases.hasMoreElements()) {
                 String alias = aliases.nextElement();
                 if (store.isKeyEntry(alias)) {
-                    if ((index >= startIndex && index <= endIndex)) {
-                        _key = (PrivateKey) store.getKey(alias, pword.toCharArray());
+                    if (index >= startIndex && index <= endIndex) {
+                        _key = (PrivateKey) store.getKey(alias, pw);
                         if (null == _key) {
                             throw new Exception("No key found for alias: " + alias); // Should not happen
                         }
@@ -92,15 +93,15 @@ public class JmeterKeyStore {
                         }
                         v_certChains.add(x509certs);
                     }
+                    index++;
                 }
-                index++;
             }
     
             if (null == _key) {
                 throw new Exception("No key(s) found");
             }
             if (index <= endIndex-startIndex) {
-                LOG.warn("Did not find all requested aliases. Start="+startIndex+", end="+endIndex+", found="+index);
+                LOG.warn("Did not find all requested aliases. Start="+startIndex+", end="+endIndex+", found="+v_certChains.size());
             }
         }
     
@@ -128,6 +129,7 @@ public class JmeterKeyStore {
         if (entry >=0) {
             return this.certChains[entry];
         }
+        // API expects null not empty array, see http://docs.oracle.com/javase/6/docs/api/javax/net/ssl/X509KeyManager.html
         return null;
     }
 
@@ -232,7 +234,12 @@ public class JmeterKeyStore {
 //            }
             aliases[i] = this.names[i];
         }
-        return aliases;
+        if(aliases.length>0) {
+            return aliases;
+        } else {
+            // API expects null not empty array, see http://docs.oracle.com/javase/6/docs/api/javax/net/ssl/X509KeyManager.html
+            return null;
+        }
     }
 
 }

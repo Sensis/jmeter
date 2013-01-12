@@ -19,13 +19,14 @@
 package org.apache.jmeter.protocol.http.sampler;
 
 import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jorphan.util.JOrphanUtils;
 
 /**
  * Factory to return the appropriate HTTPSampler for use with classes that need
  * an HTTPSampler; also creates the implementations for use with HTTPSamplerProxy.
  *
  */
-public class HTTPSamplerFactory {
+public final class HTTPSamplerFactory {
 
     // N.B. These values are used in jmeter.properties (jmeter.httpsampler) - do not change
     // They can alse be used as the implementation name
@@ -44,7 +45,7 @@ public class HTTPSamplerFactory {
     //- JMX
 
     public static final String DEFAULT_CLASSNAME =
-        JMeterUtils.getPropDefault("jmeter.httpsampler", HTTP_SAMPLER_JAVA); //$NON-NLS-1$
+        JMeterUtils.getPropDefault("jmeter.httpsampler", IMPL_HTTP_CLIENT4); //$NON-NLS-1$
 
     private HTTPSamplerFactory() {
         // Not intended to be instantiated
@@ -68,7 +69,7 @@ public class HTTPSamplerFactory {
      */
     public static HTTPSamplerBase newInstance(String alias) {
         if (alias ==null || alias.length() == 0) {
-            alias = DEFAULT_CLASSNAME;
+            return new HTTPSamplerProxy();
         }
         if (alias.equals(HTTP_SAMPLER_JAVA) || alias.equals(IMPL_JAVA)) {
             return new HTTPSamplerProxy(IMPL_JAVA);
@@ -83,14 +84,14 @@ public class HTTPSamplerFactory {
     }
 
     public static String[] getImplementations(){
-        return new String[]{IMPL_JAVA, IMPL_HTTP_CLIENT3_1, IMPL_HTTP_CLIENT4};
+        return new String[]{IMPL_HTTP_CLIENT4,IMPL_HTTP_CLIENT3_1,IMPL_JAVA};
     }
 
     public static HTTPAbstractImpl getImplementation(String impl, HTTPSamplerBase base){
         if (HTTPSamplerBase.PROTOCOL_FILE.equals(base.getProtocol())) {
             return new HTTPFileImpl(base);
         }
-        if (impl.trim().length() == 0){
+        if (JOrphanUtils.isBlank(impl)){
             impl = DEFAULT_CLASSNAME;
         }
         if (IMPL_JAVA.equals(impl) || HTTP_SAMPLER_JAVA.equals(impl)) {

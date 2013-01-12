@@ -55,6 +55,9 @@ public class AssertionGui extends AbstractAssertionGui {
     /** Radio button indicating that the text response should be tested. */
     private JRadioButton responseStringButton;
 
+    /** Radio button indicating that the text of a document should be tested. */
+    private JRadioButton responseAsDocumentButton;
+
     /** Radio button indicating that the URL should be tested. */
     private JRadioButton urlButton;
 
@@ -104,9 +107,6 @@ public class AssertionGui extends AbstractAssertionGui {
     /** A table of patterns to test against. */
     private JTable stringTable;
 
-    /** Button to add a new pattern. */
-    private JButton addPattern;
-
     /** Button to delete a pattern. */
     private JButton deletePattern;
 
@@ -120,11 +120,13 @@ public class AssertionGui extends AbstractAssertionGui {
         init();
     }
 
+    @Override
     public String getLabelResource() {
         return "assertion_title"; // $NON-NLS-1$
     }
 
     /* Implements JMeterGUIComponent.createTestElement() */
+    @Override
     public TestElement createTestElement() {
         ResponseAssertion el = new ResponseAssertion();
         modifyTestElement(el);
@@ -132,6 +134,7 @@ public class AssertionGui extends AbstractAssertionGui {
     }
 
     /* Implements JMeterGUIComponent.modifyTestElement(TestElement) */
+    @Override
     public void modifyTestElement(TestElement el) {
         configureTestElement(el);
         if (el instanceof ResponseAssertion) {
@@ -147,6 +150,8 @@ public class AssertionGui extends AbstractAssertionGui {
 
             if (responseStringButton.isSelected()) {
                 ra.setTestFieldResponseData();
+            } else if (responseAsDocumentButton.isSelected()) {
+                ra.setTestFieldResponseDataAsDocument();
             } else if (responseCodeButton.isSelected()) {
                 ra.setTestFieldResponseCode();
             } else if (responseMessageButton.isSelected()) {
@@ -227,6 +232,8 @@ public class AssertionGui extends AbstractAssertionGui {
 
         if (model.isTestFieldResponseData()) {
             responseStringButton.setSelected(true);
+        } else if (model.isTestFieldResponseDataAsDocument()) {
+            responseAsDocumentButton.setSelected(true);
         } else if (model.isTestFieldResponseCode()) {
             responseCodeButton.setSelected(true);
         } else if (model.isTestFieldResponseMessage()) {
@@ -282,6 +289,7 @@ public class AssertionGui extends AbstractAssertionGui {
         panel.setBorder(BorderFactory.createTitledBorder(JMeterUtils.getResString("assertion_resp_field"))); //$NON-NLS-1$
 
         responseStringButton = new JRadioButton(JMeterUtils.getResString("assertion_text_resp")); //$NON-NLS-1$
+        responseAsDocumentButton = new JRadioButton(JMeterUtils.getResString("assertion_text_document")); //$NON-NLS-1$
         urlButton = new JRadioButton(JMeterUtils.getResString("assertion_url_samp")); //$NON-NLS-1$
         responseCodeButton = new JRadioButton(JMeterUtils.getResString("assertion_code_resp")); //$NON-NLS-1$
         responseMessageButton = new JRadioButton(JMeterUtils.getResString("assertion_message_resp")); //$NON-NLS-1$
@@ -289,12 +297,14 @@ public class AssertionGui extends AbstractAssertionGui {
 
         ButtonGroup group = new ButtonGroup();
         group.add(responseStringButton);
+        group.add(responseAsDocumentButton);
         group.add(urlButton);
         group.add(responseCodeButton);
         group.add(responseMessageButton);
         group.add(responseHeadersButton);
 
         panel.add(responseStringButton);
+        panel.add(responseAsDocumentButton);
         panel.add(urlButton);
         panel.add(responseCodeButton);
         panel.add(responseMessageButton);
@@ -376,7 +386,7 @@ public class AssertionGui extends AbstractAssertionGui {
      * @return the new panel with add and delete buttons
      */
     private JPanel createButtonPanel() {
-        addPattern = new JButton(JMeterUtils.getResString("add")); //$NON-NLS-1$
+        JButton addPattern = new JButton(JMeterUtils.getResString("add")); //$NON-NLS-1$
         addPattern.addActionListener(new AddPatternListener());
 
         deletePattern = new JButton(JMeterUtils.getResString("delete")); //$NON-NLS-1$
@@ -394,6 +404,7 @@ public class AssertionGui extends AbstractAssertionGui {
      *
      */
     private class ClearPatternsListener implements ActionListener {
+        @Override
         public void actionPerformed(ActionEvent e) {
             int index = stringTable.getSelectedRow();
             if (index > -1) {
@@ -412,6 +423,7 @@ public class AssertionGui extends AbstractAssertionGui {
      *
      */
     private class AddPatternListener implements ActionListener {
+        @Override
         public void actionPerformed(ActionEvent e) {
             tableModel.addNewRow();
             deletePattern.setEnabled(true);

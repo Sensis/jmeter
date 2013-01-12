@@ -57,16 +57,19 @@ public abstract class AbstractProperty implements JMeterProperty {
     }
 
     /** {@inheritDoc} */
+    @Override
     public boolean isRunningVersion() {
         return runningVersion;
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getName() {
         return name;
     }
 
     /** {@inheritDoc} */
+    @Override
     public void setName(String name) {
         if (name == null) {
             throw new IllegalArgumentException("Name cannot be null");
@@ -75,6 +78,7 @@ public abstract class AbstractProperty implements JMeterProperty {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void setRunningVersion(boolean runningVersion) {
         this.runningVersion = runningVersion;
     }
@@ -101,6 +105,7 @@ public abstract class AbstractProperty implements JMeterProperty {
      *
      * @see JMeterProperty#getIntValue()
      */
+    @Override
     public int getIntValue() {
         String val = getStringValue();
         if (val == null) {
@@ -118,6 +123,7 @@ public abstract class AbstractProperty implements JMeterProperty {
      *
      * @see JMeterProperty#getLongValue()
      */
+    @Override
     public long getLongValue() {
         String val = getStringValue();
         if (val == null) {
@@ -135,6 +141,7 @@ public abstract class AbstractProperty implements JMeterProperty {
      *
      * @see JMeterProperty#getDoubleValue()
      */
+    @Override
     public double getDoubleValue() {
         String val = getStringValue();
         if (val == null) {
@@ -153,6 +160,7 @@ public abstract class AbstractProperty implements JMeterProperty {
      *
      * @see JMeterProperty#getFloatValue()
      */
+    @Override
     public float getFloatValue() {
         String val = getStringValue();
         if (val == null) {
@@ -171,12 +179,13 @@ public abstract class AbstractProperty implements JMeterProperty {
      *
      * @see JMeterProperty#getBooleanValue()
      */
+    @Override
     public boolean getBooleanValue() {
         String val = getStringValue();
         if (val == null) {
             return false;
         }
-        return Boolean.valueOf(val).booleanValue();
+        return Boolean.parseBoolean(val);
     }
 
     /**
@@ -219,6 +228,7 @@ public abstract class AbstractProperty implements JMeterProperty {
      * @return 0 if equal values or both values null; -1 otherwise
      * @see Comparable#compareTo(Object)
      */
+    @Override
     public int compareTo(JMeterProperty arg0) {
         // We don't expect the string values to ever be null. But (as in
         // bug 19499) sometimes they are. So have null compare less than
@@ -290,7 +300,7 @@ public abstract class AbstractProperty implements JMeterProperty {
      */
     protected Collection<JMeterProperty> normalizeList(Collection<?> coll) {
         if (coll.isEmpty()) {
-            @SuppressWarnings("unchecked") // empty collection
+            @SuppressWarnings("unchecked") // empty collection, local var is here to allow SuppressWarnings
             Collection<JMeterProperty> okColl = (Collection<JMeterProperty>) coll;
             return okColl;
         }
@@ -313,7 +323,7 @@ public abstract class AbstractProperty implements JMeterProperty {
      */
     protected Map<String, JMeterProperty> normalizeMap(Map<?,?> coll) {
         if (coll.isEmpty()) {
-            @SuppressWarnings("unchecked") // empty collection ok to cast
+            @SuppressWarnings("unchecked")// empty collection ok to cast, local var is here to allow SuppressWarnings
             Map<String, JMeterProperty> emptyColl = (Map<String, JMeterProperty>) coll;
             return emptyColl;
         }
@@ -369,10 +379,10 @@ public abstract class AbstractProperty implements JMeterProperty {
                     (TestElement) item);
         }
         if (item instanceof Collection<?>) {
-            return new CollectionProperty("" + item.hashCode(), (Collection<?>) item);
+            return new CollectionProperty(Integer.toString(item.hashCode()), (Collection<?>) item);
         }
         if (item instanceof Map<?, ?>) {
-            return new MapProperty("" + item.hashCode(), (Map<?, ?>) item);
+            return new MapProperty(Integer.toString(item.hashCode()), (Map<?, ?>) item);
         }
         return null;
     }
@@ -381,7 +391,7 @@ public abstract class AbstractProperty implements JMeterProperty {
         JMeterProperty prop = makeProperty(item);
         if (prop == null) {
             prop = getBlankProperty();
-            prop.setName("" + item.hashCode());
+            prop.setName(Integer.toString(item.hashCode()));
             prop.setObjectValue(item);
         }
         return prop;
@@ -399,6 +409,8 @@ public abstract class AbstractProperty implements JMeterProperty {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void mergeIn(JMeterProperty prop) {
+        // NOOP
     }
 }

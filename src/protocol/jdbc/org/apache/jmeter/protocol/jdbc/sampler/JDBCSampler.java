@@ -34,6 +34,7 @@ import org.apache.jmeter.samplers.Sampler;
 import org.apache.jmeter.testbeans.TestBean;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jorphan.logging.LoggingManager;
+import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 
 /**
@@ -55,6 +56,7 @@ public class JDBCSampler extends AbstractJDBCTestElement implements Sampler, Tes
     public JDBCSampler() {
     }
 
+    @Override
     public SampleResult sample(Entry e) {
         log.debug("sampling jdbc");
 
@@ -75,6 +77,9 @@ public class JDBCSampler extends AbstractJDBCTestElement implements Sampler, Tes
         Connection conn = null;
 
         try {
+            if(JOrphanUtils.isBlank(getDataSource())) {
+                throw new IllegalArgumentException("Variable Name must not be null in "+getName());
+            }
 
             try {
                 conn = DataSourceElement.getConnection(getDataSource());
@@ -106,6 +111,7 @@ public class JDBCSampler extends AbstractJDBCTestElement implements Sampler, Tes
     /**
      * @see org.apache.jmeter.samplers.AbstractSampler#applies(org.apache.jmeter.config.ConfigTestElement)
      */
+    @Override
     public boolean applies(ConfigTestElement configElement) {
         String guiClass = configElement.getProperty(TestElement.GUI_CLASS).getStringValue();
         return APPLIABLE_CONFIG_CLASSES.contains(guiClass);

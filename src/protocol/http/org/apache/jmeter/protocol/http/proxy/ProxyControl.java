@@ -54,7 +54,7 @@ import org.apache.jmeter.samplers.SampleEvent;
 import org.apache.jmeter.samplers.SampleListener;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.TestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.TestPlan;
 import org.apache.jmeter.testelement.WorkBench;
 import org.apache.jmeter.testelement.property.BooleanProperty;
@@ -124,10 +124,6 @@ public class ProxyControl extends GenericController {
     private static final String SAMPLER_DOWNLOAD_IMAGES = "ProxyControlGui.sampler_download_images"; // $NON-NLS-1$
 
     private static final String REGEX_MATCH = "ProxyControlGui.regex_match"; // $NON-NLS-1$
-
-    private static final String HTTPS_SPOOF = "ProxyControlGui.https_spoof"; // $NON-NLS-1$
-
-    private static final String HTTPS_SPOOF_MATCH = "ProxyControlGui.https_spoof_match"; // $NON-NLS-1$
 
     private static final String CONTENT_TYPE_EXCLUDE = "ProxyControlGui.content_type_exclude"; // $NON-NLS-1$
 
@@ -203,10 +199,14 @@ public class ProxyControl extends GenericController {
         setProperty(new BooleanProperty(ADD_ASSERTIONS, b));
     }
 
+    @Deprecated
     public void setSamplerTypeName(int samplerTypeName) {
         setProperty(new IntegerProperty(SAMPLER_TYPE_NAME, samplerTypeName));
     }
 
+    public void setSamplerTypeName(String samplerTypeName) {
+        setProperty(new StringProperty(SAMPLER_TYPE_NAME, samplerTypeName));
+    }
     public void setSamplerRedirectAutomatically(boolean b) {
         samplerRedirectAutomatically.set(b);
         setProperty(new BooleanProperty(SAMPLER_REDIRECT_AUTOMATICALLY, b));
@@ -244,14 +244,6 @@ public class ProxyControl extends GenericController {
     public void setRegexMatch(boolean b) {
         regexMatch.set(b);
         setProperty(new BooleanProperty(REGEX_MATCH, b));
-    }
-
-    public void setHttpsSpoof(boolean b) {
-        setProperty(new BooleanProperty(HTTPS_SPOOF, b));
-    }
-
-    public void setHttpsSpoofMatch(String s) {
-        setProperty(new StringProperty(HTTPS_SPOOF_MATCH, s));
     }
 
     public void setContentTypeExclude(String contentTypeExclude) {
@@ -317,14 +309,6 @@ public class ProxyControl extends GenericController {
 
     public boolean getRegexMatch() {
         return getPropertyAsBoolean(REGEX_MATCH, false);
-    }
-
-    public boolean getHttpsSpoof() {
-        return getPropertyAsBoolean(HTTPS_SPOOF, false);
-    }
-
-    public String getHttpsSpoofMatch() {
-        return getPropertyAsString(HTTPS_SPOOF_MATCH, "");
     }
 
     public String getContentTypeExclude() {
@@ -553,7 +537,8 @@ public class ProxyControl extends GenericController {
         sc.setProperty(TestElement.GUI_CLASS, LOGIC_CONTROLLER_GUI);
         sc.setName("-------------------"); // $NON-NLS-1$
         JMeterUtils.runSafe(new Runnable() {
-			public void run() {
+			@Override
+            public void run() {
 				try {
 					model.addComponent(sc, node);
 				} catch (IllegalUserActionException e) {
@@ -582,7 +567,8 @@ public class ProxyControl extends GenericController {
         sc.setProperty(TestElement.GUI_CLASS, LOGIC_CONTROLLER_GUI);
         sc.setName(name);
         JMeterUtils.runSafe(new Runnable() {
-			public void run() {
+			@Override
+            public void run() {
 		        try {
 					model.addComponent(sc, node);
 				} catch (IllegalUserActionException e) {
@@ -611,7 +597,8 @@ public class ProxyControl extends GenericController {
         sc.setProperty(TestElement.GUI_CLASS, TRANSACTION_CONTROLLER_GUI);
         sc.setName(name);
         JMeterUtils.runSafe(new Runnable() {
-			public void run() {
+			@Override
+            public void run() {
 				 try {
 					model.addComponent(sc, node);
 				} catch (IllegalUserActionException e) {
@@ -848,7 +835,8 @@ public class ProxyControl extends GenericController {
             final boolean firstInBatchFinal = firstInBatch;
             final JMeterTreeNode myTargetFinal = myTarget;
             JMeterUtils.runSafe(new Runnable() {
-				public void run() {
+				@Override
+                public void run() {
 					try {
 			            final JMeterTreeNode newNode = treeModel.addComponent(sampler, myTargetFinal);
 			            if (firstInBatchFinal) {
@@ -1018,8 +1006,8 @@ public class ProxyControl extends GenericController {
             JMeterTreeNode subNode = kids.nextElement();
             if (subNode.isEnabled()) {
                 TestElement testElement = subNode.getTestElement();
-                if (testElement instanceof TestListener) {
-                    ((TestListener) testElement).testStarted();
+                if (testElement instanceof TestStateListener) {
+                    ((TestStateListener) testElement).testStarted();
                 }
             }
         }
@@ -1037,8 +1025,8 @@ public class ProxyControl extends GenericController {
             JMeterTreeNode subNode = kids.nextElement();
             if (subNode.isEnabled()) {
                 TestElement testElement = subNode.getTestElement();
-                if (testElement instanceof TestListener) {
-                    ((TestListener) testElement).testEnded();
+                if (testElement instanceof TestStateListener) { // TL - TE
+                    ((TestStateListener) testElement).testEnded();
                 }
             }
         }

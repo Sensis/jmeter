@@ -36,7 +36,7 @@ import javax.mail.internet.MimeMessage;
 import javax.swing.event.ChangeEvent;
 import javax.swing.event.ChangeListener;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.AbstractTestElement;
 import org.apache.jmeter.util.JMeterUtils;
@@ -161,7 +161,7 @@ public class MailerModel extends AbstractTestElement implements Serializable {
             while (next.hasMoreTokens()) {
                 String theToken = next.nextToken().trim();
 
-                if (theToken.indexOf("@") > 0) { //$NON-NLS-1$
+                if (theToken.indexOf('@') > 0) { //$NON-NLS-1$
                 	addressList.add(theToken);
                 } else {
                     log.warn("Ignored unexpected e-mail address: "+theToken);

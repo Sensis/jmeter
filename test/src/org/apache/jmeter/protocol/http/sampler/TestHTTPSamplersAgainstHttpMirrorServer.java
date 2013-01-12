@@ -34,6 +34,7 @@ import org.apache.jmeter.protocol.http.control.HttpMirrorServer;
 import org.apache.jmeter.protocol.http.control.TestHTTPMirrorThread;
 import org.apache.jmeter.protocol.http.util.EncoderCache;
 import org.apache.jmeter.protocol.http.util.HTTPArgument;
+import org.apache.jmeter.protocol.http.util.HTTPConstants;
 import org.apache.jmeter.protocol.http.util.HTTPFileArg;
 import org.apache.jmeter.testelement.TestPlan;
 import org.apache.jmeter.threads.JMeterContextService;
@@ -55,16 +56,16 @@ import junit.extensions.TestSetup;
  * started when the unit tests are executed.
  */
 public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
-    private final static int HTTP_SAMPLER = 0;
-    private final static int HTTP_SAMPLER2 = 1;
-    private final static int HTTP_SAMPLER3 = 2;
+    private static final int HTTP_SAMPLER = 0;
+    private static final int HTTP_SAMPLER2 = 1;
+    private static final int HTTP_SAMPLER3 = 2;
     
     /** The encodings used for http headers and control information */
-    private final static String ISO_8859_1 = "ISO-8859-1"; // $NON-NLS-1$
+    private static final String ISO_8859_1 = "ISO-8859-1"; // $NON-NLS-1$
     private static final String US_ASCII = "US-ASCII"; // $NON-NLS-1$
 
     private static final byte[] CRLF = { 0x0d, 0x0A };
-    private static final int MIRROR_PORT = 8081; // Different from TestHTTPMirrorThread port
+    private static final int MIRROR_PORT = 8182; // Different from TestHTTPMirrorThread port and standard mirror server
     private static byte[] TEST_FILE_CONTENT;
 
     private static File temporaryFile;
@@ -228,8 +229,8 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
             case 2:
                 // Test sending data as UTF-8
                 contentEncoding = "UTF-8";
-                titleValue = "mytitle\u0153\u20a1\u0115\u00c5";
-                descriptionValue = "mydescription\u0153\u20a1\u0115\u00c5";
+                titleValue = "mytitle2\u0153\u20a1\u0115\u00c5";
+                descriptionValue = "mydescription2\u0153\u20a1\u0115\u00c5";
                 setupUrl(sampler, contentEncoding);
                 setupFormData(sampler, false, titleField, titleValue, descriptionField, descriptionValue);
                 res = executeSampler(sampler);
@@ -238,8 +239,8 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
             case 3:
                 // Test sending data as UTF-8, with values that will change when urlencoded
                 contentEncoding = "UTF-8";
-                titleValue = "mytitle/=";
-                descriptionValue = "mydescription   /\\";
+                titleValue = "mytitle3/=";
+                descriptionValue = "mydescription3   /\\";
                 setupUrl(sampler, contentEncoding);
                 setupFormData(sampler, false, titleField, titleValue, descriptionField, descriptionValue);
                 res = executeSampler(sampler);
@@ -248,8 +249,8 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
             case 4:
                 // Test sending data as UTF-8, with values that have been urlencoded
                 contentEncoding = "UTF-8";
-                titleValue = "mytitle%2F%3D";
-                descriptionValue = "mydescription+++%2F%5C";
+                titleValue = "mytitle4%2F%3D";
+                descriptionValue = "mydescription4+++%2F%5C";
                 setupUrl(sampler, contentEncoding);
                 setupFormData(sampler, true, titleField, titleValue, descriptionField, descriptionValue);
                 res = executeSampler(sampler);
@@ -259,7 +260,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                 // Test sending data as UTF-8, with values similar to __VIEWSTATE parameter that .net uses
                 contentEncoding = "UTF-8";
                 titleValue = "/wEPDwULLTE2MzM2OTA0NTYPZBYCAgMPZ/rA+8DZ2dnZ2dnZ2d/GNDar6OshPwdJc=";
-                descriptionValue = "mydescription";
+                descriptionValue = "mydescription5";
                 setupUrl(sampler, contentEncoding);
                 setupFormData(sampler, false, titleField, titleValue, descriptionField, descriptionValue);
                 res = executeSampler(sampler);
@@ -271,7 +272,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                 // This is how the HTTP Proxy server adds arguments to the sampler
                 contentEncoding = "UTF-8";
                 titleValue = "%2FwEPDwULLTE2MzM2OTA0NTYPZBYCAgMPZ%2FrA%2B8DZ2dnZ2dnZ2d%2FGNDar6OshPwdJc%3D";
-                descriptionValue = "mydescription";
+                descriptionValue = "mydescription6";
                 setupUrl(sampler, contentEncoding);
                 setupFormData(sampler, false, titleField, titleValue, descriptionField, descriptionValue);
                 ((HTTPArgument)sampler.getArguments().getArgument(0)).setAlwaysEncoded(false);
@@ -295,15 +296,15 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                 replacer.setUserDefinedVariables(testPlan.getUserDefinedVariables());
                 
                 contentEncoding = "UTF-8";
-                titleValue = "${title_prefix}mytitle\u0153\u20a1\u0115\u00c5";
-                descriptionValue = "mydescription\u0153\u20a1\u0115\u00c5${description_suffix}";
+                titleValue = "${title_prefix}mytitle7\u0153\u20a1\u0115\u00c5";
+                descriptionValue = "mydescription7\u0153\u20a1\u0115\u00c5${description_suffix}";
                 setupUrl(sampler, contentEncoding);
                 setupFormData(sampler, false, titleField, titleValue, descriptionField, descriptionValue);
                 // Replace the variables in the sampler
                 replacer.replaceValues(sampler);
                 res = executeSampler(sampler);
-                String expectedTitleValue = "a test\u00c5mytitle\u0153\u20a1\u0115\u00c5";
-                String expectedDescriptionValue = "mydescription\u0153\u20a1\u0115\u00c5the_end";
+                String expectedTitleValue = "a test\u00c5mytitle7\u0153\u20a1\u0115\u00c5";
+                String expectedDescriptionValue = "mydescription7\u0153\u20a1\u0115\u00c5the_end";
                 checkPostRequestUrlEncoded(sampler, res, samplerDefaultEncoding, contentEncoding, titleField, expectedTitleValue, descriptionField, expectedDescriptionValue, false);
                 break;
             case 8:
@@ -564,7 +565,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         // Test sending data as UTF-8, with + as part of the value,
         // where the value is set in sampler as not urluencoded, but the 
         // isalwaysencoded flag of the argument is set to false.
-        // This mimics the HTTPSamplerBase.addNonEncodedArgument, which the
+        // This mimics the HTTPConstants.addNonEncodedArgument, which the
         // Proxy server calls in some cases
         sampler = createHttpSampler(samplerType);
         contentEncoding = "UTF-8";
@@ -613,7 +614,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         HTTPSamplerBase sampler = createHttpSampler(samplerType);
         String contentEncoding = "";
         setupUrl(sampler, contentEncoding);
-        sampler.setMethod(HTTPSamplerBase.GET);
+        sampler.setMethod(HTTPConstants.GET);
         HTTPSampleResult res = executeSampler(sampler);
         checkGetRequest(sampler, res);
         
@@ -621,7 +622,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         sampler = createHttpSampler(samplerType);
         contentEncoding = ISO_8859_1;
         setupUrl(sampler, contentEncoding);
-        sampler.setMethod(HTTPSamplerBase.GET);
+        sampler.setMethod(HTTPConstants.GET);
         res = executeSampler(sampler);
         checkGetRequest(sampler, res);
 
@@ -629,7 +630,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         sampler = createHttpSampler(samplerType);
         contentEncoding = "UTF-8";
         setupUrl(sampler, contentEncoding);
-        sampler.setMethod(HTTPSamplerBase.GET);
+        sampler.setMethod(HTTPConstants.GET);
         res = executeSampler(sampler);
         checkGetRequest(sampler, res);
     }
@@ -650,7 +651,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                 // Test sending data with default encoding
                 contentEncoding = "";
                 setupUrl(sampler, contentEncoding);
-                sampler.setMethod(HTTPSamplerBase.GET);
+                sampler.setMethod(HTTPConstants.GET);
                 setupFormData(sampler, false, titleField, titleValue, descriptionField, descriptionValue);
                 res = executeSampler(sampler);
                 sampler.setRunningVersion(true);
@@ -662,10 +663,10 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                 // Test sending data with ISO-8859-1 encoding
                 sampler = createHttpSampler(samplerType);
                 contentEncoding = ISO_8859_1;
-                titleValue = "mytitle\uc385";
-                descriptionValue = "mydescription\uc385";
+                titleValue = "mytitle1\uc385";
+                descriptionValue = "mydescription1\uc385";
                 setupUrl(sampler, contentEncoding);
-                sampler.setMethod(HTTPSamplerBase.GET);
+                sampler.setMethod(HTTPConstants.GET);
                 setupFormData(sampler, false, titleField, titleValue, descriptionField, descriptionValue);
                 res = executeSampler(sampler);
                 sampler.setRunningVersion(true);
@@ -677,10 +678,10 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                 // Test sending data with UTF-8 encoding
                 sampler = createHttpSampler(samplerType);
                 contentEncoding = "UTF-8";
-                titleValue = "mytitle\u0153\u20a1\u0115\u00c5";
-                descriptionValue = "mydescription\u0153\u20a1\u0115\u00c5";
+                titleValue = "mytitle2\u0153\u20a1\u0115\u00c5";
+                descriptionValue = "mydescription2\u0153\u20a1\u0115\u00c5";
                 setupUrl(sampler, contentEncoding);
-                sampler.setMethod(HTTPSamplerBase.GET);
+                sampler.setMethod(HTTPConstants.GET);
                 setupFormData(sampler, false, titleField, titleValue, descriptionField, descriptionValue);
                 res = executeSampler(sampler);
                 sampler.setRunningVersion(true);
@@ -692,10 +693,10 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                 // Test sending data as UTF-8, with values that changes when urlencoded
                 sampler = createHttpSampler(samplerType);
                 contentEncoding = "UTF-8";
-                titleValue = "mytitle\u0153+\u20a1 \u0115&yes\u00c5";
-                descriptionValue = "mydescription \u0153 \u20a1 \u0115 \u00c5";
+                titleValue = "mytitle3\u0153+\u20a1 \u0115&yes\u00c5";
+                descriptionValue = "mydescription3 \u0153 \u20a1 \u0115 \u00c5";
                 setupUrl(sampler, contentEncoding);
-                sampler.setMethod(HTTPSamplerBase.GET);
+                sampler.setMethod(HTTPConstants.GET);
                 setupFormData(sampler, false, titleField, titleValue, descriptionField, descriptionValue);
                 res = executeSampler(sampler);
                 sampler.setRunningVersion(true);
@@ -707,10 +708,10 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                 // Test sending data as UTF-8, with values that have been urlencoded
                 sampler = createHttpSampler(samplerType);
                 contentEncoding = "UTF-8";
-                titleValue = "mytitle%2F%3D";
-                descriptionValue = "mydescription+++%2F%5C";
+                titleValue = "mytitle4%2F%3D";
+                descriptionValue = "mydescription4+++%2F%5C";
                 setupUrl(sampler, contentEncoding);
-                sampler.setMethod(HTTPSamplerBase.GET);
+                sampler.setMethod(HTTPConstants.GET);
                 setupFormData(sampler, true, titleField, titleValue, descriptionField, descriptionValue);
                 res = executeSampler(sampler);
                 sampler.setRunningVersion(true);
@@ -733,16 +734,16 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                 
                 sampler = createHttpSampler(samplerType);
                 contentEncoding = "UTF-8";
-                titleValue = "${title_prefix}mytitle\u0153\u20a1\u0115\u00c5";
-                descriptionValue = "mydescription\u0153\u20a1\u0115\u00c5${description_suffix}";
+                titleValue = "${title_prefix}mytitle5\u0153\u20a1\u0115\u00c5";
+                descriptionValue = "mydescription5\u0153\u20a1\u0115\u00c5${description_suffix}";
                 setupUrl(sampler, contentEncoding);
-                sampler.setMethod(HTTPSamplerBase.GET);
+                sampler.setMethod(HTTPConstants.GET);
                 setupFormData(sampler, false, titleField, titleValue, descriptionField, descriptionValue);
                 // Replace the variables in the sampler
                 replacer.replaceValues(sampler);
                 res = executeSampler(sampler);
-                String expectedTitleValue = "a test\u00c5mytitle\u0153\u20a1\u0115\u00c5";
-                String expectedDescriptionValue = "mydescription\u0153\u20a1\u0115\u00c5the_end";
+                String expectedTitleValue = "a test\u00c5mytitle5\u0153\u20a1\u0115\u00c5";
+                String expectedDescriptionValue = "mydescription5\u0153\u20a1\u0115\u00c5the_end";
                 sampler.setRunningVersion(true);
                 executedUrl = sampler.getUrl();
                 sampler.setRunningVersion(false);
@@ -826,7 +827,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         // Check request headers
         checkHeaderTypeLength(res.getRequestHeaders(), "multipart/form-data" + "; boundary=" + boundaryString, expectedPostBody.length);
         // Check post body from the result query string
-        checkArraysHaveSameContent(expectedPostBody, res.getQueryString().getBytes(contentEncoding), contentEncoding);
+        checkArraysHaveSameContent(expectedPostBody, res.getQueryString().getBytes(contentEncoding), contentEncoding, res);
 
         // Find the data sent to the mirror server, which the mirror server is sending back to us
         String dataSentToMirrorServer = new String(res.getResponseData(), contentEncoding);
@@ -845,9 +846,9 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         checkHeaderTypeLength(headersSent, "multipart/form-data" + "; boundary=" + boundaryString, expectedPostBody.length);
         // Check post body which was sent to the mirror server, and
         // sent back by the mirror server
-        checkArraysHaveSameContent(expectedPostBody, bodySent.getBytes(contentEncoding), contentEncoding);
+        checkArraysHaveSameContent(expectedPostBody, bodySent.getBytes(contentEncoding), contentEncoding, res);
         // Check method, path and query sent
-        checkMethodPathQuery(headersSent, sampler.getMethod(), sampler.getPath(), null);
+        checkMethodPathQuery(headersSent, sampler.getMethod(), sampler.getPath(), (String) null, res);
     }
     
     private void checkPostRequestFileUpload(
@@ -888,9 +889,9 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         assertNotNull("Sent body should not be null", bodySent);
         // Check post body which was sent to the mirror server, and
         // sent back by the mirror server
-        checkArraysHaveSameContent(expectedPostBody, bodySent, contentEncoding);
+        checkArraysHaveSameContent(expectedPostBody, bodySent, contentEncoding, res);
         // Check method, path and query sent
-        checkMethodPathQuery(headersSent, sampler.getMethod(), sampler.getPath(), null);
+        checkMethodPathQuery(headersSent, sampler.getMethod(), sampler.getPath(), (String) null, res);
     }
 
     private void checkPostRequestBody(
@@ -905,9 +906,9 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         // Check URL
         assertEquals(sampler.getUrl(), res.getURL());
         // Check request headers
-        checkHeaderTypeLength(res.getRequestHeaders(), HTTPSamplerBase.APPLICATION_X_WWW_FORM_URLENCODED, expectedPostBody.getBytes(contentEncoding).length);
+        checkHeaderTypeLength(res.getRequestHeaders(), HTTPConstants.APPLICATION_X_WWW_FORM_URLENCODED, expectedPostBody.getBytes(contentEncoding).length);
          // Check post body from the result query string
-        checkArraysHaveSameContent(expectedPostBody.getBytes(contentEncoding), res.getQueryString().getBytes(contentEncoding), contentEncoding);
+        checkArraysHaveSameContent(expectedPostBody.getBytes(contentEncoding), res.getQueryString().getBytes(contentEncoding), contentEncoding, res);
 
         // Find the data sent to the mirror server, which the mirror server is sending back to us
         String dataSentToMirrorServer = new String(res.getResponseData(), contentEncoding);
@@ -923,12 +924,12 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
             fail("No header and body section found");
         }
         // Check response headers
-        checkHeaderTypeLength(headersSent, HTTPSamplerBase.APPLICATION_X_WWW_FORM_URLENCODED, expectedPostBody.getBytes(contentEncoding).length);
+        checkHeaderTypeLength(headersSent, HTTPConstants.APPLICATION_X_WWW_FORM_URLENCODED, expectedPostBody.getBytes(contentEncoding).length);
         // Check post body which was sent to the mirror server, and
         // sent back by the mirror server
-        checkArraysHaveSameContent(expectedPostBody.getBytes(contentEncoding), bodySent.getBytes(contentEncoding), contentEncoding);
+        checkArraysHaveSameContent(expectedPostBody.getBytes(contentEncoding), bodySent.getBytes(contentEncoding), contentEncoding, res);
         // Check method, path and query sent
-        checkMethodPathQuery(headersSent, sampler.getMethod(), sampler.getPath(), null);
+        checkMethodPathQuery(headersSent, sampler.getMethod(), sampler.getPath(), (String) null, res);
     }
 
     private void checkGetRequest(
@@ -958,7 +959,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         // No body should have been sent
         assertEquals(bodySent.length(), 0);
         // Check method, path and query sent
-        checkMethodPathQuery(headersSent, sampler.getMethod(), sampler.getPath(), null);
+        checkMethodPathQuery(headersSent, sampler.getMethod(), sampler.getPath(), (String) null, res);
     }
     
     private void checkGetRequest_Parameters(
@@ -1002,31 +1003,33 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
             bodySent = dataSentToMirrorServer.substring(posDividerHeadersAndBody+2);
         }
         else {
-            fail("No header and body section found");
+            fail("No header and body section found in: ["+dataSentToMirrorServer+"]");
         }
         // No body should have been sent
         assertEquals(bodySent.length(), 0);
         // Check method, path and query sent
-        checkMethodPathQuery(headersSent, sampler.getMethod(), sampler.getPath(), expectedQueryString);
+        checkMethodPathQuery(headersSent, sampler.getMethod(), sampler.getPath(), expectedQueryString, res);
     }
     
     private void checkMethodPathQuery(
             String headersSent,
             String expectedMethod,
             String expectedPath,
-            String expectedQueryString)
+            String expectedQueryString,
+            HTTPSampleResult res
+            )
             throws IOException {
         // Check the Request URI sent to the mirror server, and
         // sent back by the mirror server
-        int indexFirstSpace = headersSent.indexOf(" ");
-        int indexSecondSpace = headersSent.indexOf(" ", headersSent.length() > indexFirstSpace ? indexFirstSpace + 1 : indexFirstSpace);
+        int indexFirstSpace = headersSent.indexOf(' ');
+        int indexSecondSpace = headersSent.indexOf(' ', headersSent.length() > indexFirstSpace ? indexFirstSpace + 1 : indexFirstSpace);
         if(indexFirstSpace <= 0 && indexSecondSpace <= 0 || indexFirstSpace == indexSecondSpace) {
             fail("Could not find method and URI sent");
         }
         String methodSent = headersSent.substring(0, indexFirstSpace);
         assertEquals(expectedMethod, methodSent);
         String uriSent = headersSent.substring(indexFirstSpace + 1, indexSecondSpace);
-        int indexQueryStart = uriSent.indexOf("?");
+        int indexQueryStart = uriSent.indexOf('?');
         if(expectedQueryString != null && expectedQueryString.length() > 0) {
             // We should have a query string part
             if(indexQueryStart <= 0 || (indexQueryStart == uriSent.length() - 1)) {
@@ -1051,7 +1054,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
             // Is it only the parameter values which are encoded in the specified
             // content encoding, the rest of the query is encoded in UTF-8
             // Therefore we compare the whole query using UTF-8
-            checkArraysHaveSameContent(expectedQueryString.getBytes(EncoderCache.URL_ARGUMENT_ENCODING), queryStringSent.getBytes(EncoderCache.URL_ARGUMENT_ENCODING), EncoderCache.URL_ARGUMENT_ENCODING);
+            checkArraysHaveSameContent(expectedQueryString.getBytes(EncoderCache.URL_ARGUMENT_ENCODING), queryStringSent.getBytes(EncoderCache.URL_ARGUMENT_ENCODING), EncoderCache.URL_ARGUMENT_ENCODING, res);
         }
     }
 
@@ -1079,10 +1082,10 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         if(headersSent != null) {
             // Get the content length, it tells us how much data to read
             // TODO : Maybe support chunked encoding, then we cannot rely on content length
-            String contentLengthValue = getSentRequestHeaderValue(headersSent, HTTPSamplerBase.HEADER_CONTENT_LENGTH);
+            String contentLengthValue = getSentRequestHeaderValue(headersSent, HTTPConstants.HEADER_CONTENT_LENGTH);
             int contentLength = -1;
             if(contentLengthValue != null) {
-                contentLength = new Integer(contentLengthValue).intValue();
+                contentLength = Integer.parseInt(contentLengthValue);
             }
             else {
                 fail("Did not receive any content-length header");
@@ -1101,8 +1104,8 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
     // See: http://bugs.sun.com/bugdatabase/view_bug.do?bug_id=6996110
     // TODO any point in checking the other headers?
     private void checkHeaderTypeLength(String requestHeaders, String contentType, int contentLen) {
-        boolean typeOK = isInRequestHeaders(requestHeaders, HTTPSamplerBase.HEADER_CONTENT_TYPE, contentType);
-//        boolean lengOK = isInRequestHeaders(requestHeaders, HTTPSamplerBase.HEADER_CONTENT_LENGTH, Integer.toString(contentLen));
+        boolean typeOK = isInRequestHeaders(requestHeaders, HTTPConstants.HEADER_CONTENT_TYPE, contentType);
+//        boolean lengOK = isInRequestHeaders(requestHeaders, HTTPConstants.HEADER_CONTENT_LENGTH, Integer.toString(contentLen));
         if (!typeOK){
             fail("Expected type:" + contentType + " in:\n"+ requestHeaders);
         }
@@ -1145,13 +1148,13 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
 
     private String getBoundaryStringFromContentType(String requestHeaders) {
         Perl5Matcher localMatcher = JMeterUtils.getMatcher();
-        String regularExpression = "^" + HTTPSamplerBase.HEADER_CONTENT_TYPE + ": multipart/form-data; boundary=(.+)$"; 
+        String regularExpression = "^" + HTTPConstants.HEADER_CONTENT_TYPE + ": multipart/form-data; boundary=(.+)$"; 
         Pattern pattern = JMeterUtils.getPattern(regularExpression, Perl5Compiler.READ_ONLY_MASK | Perl5Compiler.CASE_INSENSITIVE_MASK | Perl5Compiler.MULTILINE_MASK);
         if(localMatcher.contains(requestHeaders, pattern)) {
             MatchResult match = localMatcher.getMatch();
             String matchString =  match.group(1);
             // Header may contain ;charset= , regexp extracts it so computed boundary is wrong
-            int indexOf = matchString.indexOf(";");
+            int indexOf = matchString.indexOf(';');
             if(indexOf>=0) {
                 return matchString.substring(0, indexOf);
             } else {
@@ -1169,7 +1172,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
         String domain = "localhost";
         String path = "/test/somescript.jsp";
         sampler.setProtocol(protocol);
-        sampler.setMethod(HTTPSamplerBase.POST);
+        sampler.setMethod(HTTPConstants.POST);
         sampler.setPath(path);
         sampler.setDomain(domain);
         sampler.setPort(MIRROR_PORT);
@@ -1222,7 +1225,7 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
      * @param actual
      * @throws UnsupportedEncodingException 
      */
-    private void checkArraysHaveSameContent(byte[] expected, byte[] actual, String encoding) throws UnsupportedEncodingException {
+    private void checkArraysHaveSameContent(byte[] expected, byte[] actual, String encoding, HTTPSampleResult res) throws UnsupportedEncodingException {
         if(expected != null && actual != null) {
             if(expected.length != actual.length) {
                 System.out.println("\n>>>>>>>>>>>>>>>>>>>> expected:");
@@ -1230,6 +1233,9 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                 System.out.println("==================== actual:");
                 System.out.println(new String(actual, encoding));
                 System.out.println("<<<<<<<<<<<<<<<<<<<<");
+                if (res != null) {
+                    System.out.println("URL="+res.getUrlAsString());
+                }
                 fail("arrays have different length, expected is " + expected.length + ", actual is " + actual.length);
             }
             else {
@@ -1251,12 +1257,18 @@ public class TestHTTPSamplersAgainstHttpMirrorServer extends JMeterTestCase {
                         }
                         System.out.println();
 */                        
+                        if (res != null) {
+                            System.out.println("URL="+res.getUrlAsString());
+                        }
                         fail("byte at position " + i + " is different, expected is " + expected[i] + ", actual is " + actual[i]);
                     }
                 }
             }
         }
         else {
+            if (res != null) {
+                System.out.println("URL="+res.getUrlAsString());
+            }
             fail("expected or actual byte arrays were null");
         }
     }

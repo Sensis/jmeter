@@ -20,7 +20,8 @@ package org.apache.jmeter.visualizers;
 
 import java.io.IOException;
 
-import javax.script.ScriptEngineManager;
+import javax.script.Bindings;
+import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
 import org.apache.jmeter.samplers.SampleEvent;
@@ -39,32 +40,37 @@ public class JSR223Listener extends JSR223TestElement
 
     private static final long serialVersionUID = 234L;
 
+    @Override
     public void sampleOccurred(SampleEvent event) {
         try {
-            ScriptEngineManager sem = getManager();
-            if (sem == null) { return; }
-            sem.put("sampleEvent", event);
-            sem.put("sampleResult", event.getResult());
-            processFileOrScript(sem);
+            ScriptEngine scriptEngine = getScriptEngine();
+            Bindings bindings = scriptEngine.createBindings();
+            bindings.put("sampleEvent", event);
+            bindings.put("sampleResult", event.getResult());
+            processFileOrScript(scriptEngine, bindings);
         } catch (ScriptException e) {
-            log.warn("Problem in JSR223 script "+e);
+            log.error("Problem in JSR223 script ", e);
         } catch (IOException e) {
-            log.warn("Problem in JSR223 script "+e);
+            log.error("Problem in JSR223 script ", e);
         }
     }
 
+    @Override
     public void sampleStarted(SampleEvent e) {
     	// NOOP
     }
 
+    @Override
     public void sampleStopped(SampleEvent e) {
     	// NOOP
     }
 
+    @Override
     public void add(SampleResult sample) {
     	// NOOP
     }
 
+    @Override
     public boolean isStats() {
         return false;
     }

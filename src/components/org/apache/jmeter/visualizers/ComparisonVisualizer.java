@@ -58,8 +58,10 @@ public class ComparisonVisualizer extends AbstractVisualizer implements Clearabl
         init();
     }
 
+    @Override
     public void add(final SampleResult sample) {
         JMeterUtils.runSafe(new Runnable() {
+            @Override
             public void run() {
                 DefaultMutableTreeNode currNode = new DefaultMutableTreeNode(sample);
                 treeModel.insertNodeInto(currNode, root, root.getChildCount());
@@ -70,6 +72,7 @@ public class ComparisonVisualizer extends AbstractVisualizer implements Clearabl
         });
     }
 
+    @Override
     public String getLabelResource() {
         return "comparison_visualizer_title"; //$NON-NLS-1$
     }
@@ -131,6 +134,7 @@ public class ComparisonVisualizer extends AbstractVisualizer implements Clearabl
         /**
          * {@inheritDoc}
          */
+        @Override
         public void valueChanged(TreeSelectionEvent e) {
             try {
                 DefaultMutableTreeNode node = (DefaultMutableTreeNode) resultsTree.getLastSelectedPathComponent();
@@ -143,8 +147,9 @@ public class ComparisonVisualizer extends AbstractVisualizer implements Clearabl
                         break;
                     }
                 }
-                if (result == null)
+                if (result == null) {
                     result = new CompareAssertionResult(getName());
+                }
                 base.setText(result.getBaseResult());
                 secondary.setText(result.getSecondaryResult());
             } catch (Exception err) {
@@ -156,6 +161,7 @@ public class ComparisonVisualizer extends AbstractVisualizer implements Clearabl
         }
     }
 
+    @Override
     public void clearData() {
         while (root.getChildCount() > 0) {
             // the child to be removed will always be 0 'cos as the nodes are

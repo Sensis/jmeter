@@ -45,6 +45,7 @@ public class SamplerName extends AbstractFunction {
 
     private Object[] values;
 
+    // TODO Should this method be synchronized ? all other function execute are
     /** {@inheritDoc} */
     @Override
     public String execute(SampleResult previousResult, Sampler currentSampler)
@@ -81,6 +82,7 @@ public class SamplerName extends AbstractFunction {
     }
 
     /** {@inheritDoc} */
+    @Override
     public List<String> getArgumentDesc() {
         return desc;
     }

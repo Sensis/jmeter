@@ -18,19 +18,18 @@
 
 package org.apache.jmeter.protocol.java.sampler;
 
+import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.Set;
 
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.samplers.AbstractSampler;
 import org.apache.jmeter.samplers.Entry;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.TestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.property.TestElementProperty;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
@@ -41,7 +40,7 @@ import org.apache.log.Logger;
  * information on writing Java code to be executed by this sampler.
  *
  */
-public class JavaSampler extends AbstractSampler implements TestListener {
+public class JavaSampler extends AbstractSampler implements TestStateListener {
 
     private static final Logger log = LoggingManager.getLoggerForClass();
 
@@ -53,6 +52,12 @@ public class JavaSampler extends AbstractSampler implements TestListener {
                     "org.apache.jmeter.config.gui.SimpleConfigGui"}));
 
     /**
+     * Set used to register instances which implement tearDownTest.
+     * This is used so that the JavaSamplerClient can be notified when the test ends.
+     */
+    private static final Set<JavaSampler> TEAR_DOWN_SET = new HashSet<JavaSampler>();
+
+    /**
      * Property key representing the classname of the JavaSamplerClient to user.
      */
     public static final String CLASSNAME = "classname";
@@ -61,6 +66,18 @@ public class JavaSampler extends AbstractSampler implements TestListener {
      * Property key representing the arguments for the JavaSamplerClient.
      */
     public static final String ARGUMENTS = "arguments";
+
+    /**
+     * The JavaSamplerClient class used by this sampler.
+     * Created by testStarted; copied to cloned instances.
+     */
+    private Class<?> javaClass;
+
+    /**
+     * If true, the JavaSamplerClient class implements tearDownTest.
+     * Created by testStarted; copied to cloned instances.
+     */
+    private boolean isToBeRegistered;
 
     /**
      * The JavaSamplerClient instance used by this sampler to actually perform
@@ -76,19 +93,35 @@ public class JavaSampler extends AbstractSampler implements TestListener {
     private transient JavaSamplerContext context = null;
 
     /**
-     * Set used to register all active JavaSamplers. This is used so that the
-     * samplers can be notified when the test ends.
-     */
-    private static final Set<JavaSampler> allSamplers = new HashSet<JavaSampler>();
-
-    /**
      * Create a JavaSampler.
      */
     public JavaSampler() {
-        setArguments(new Arguments());
-        synchronized (allSamplers) {
-            allSamplers.add(this);
+        setArguments(new Arguments());    
+    }
+
+    /*
+     * Ensure that the required class variables are cloned,
+     * as this is not currently done by the super-implementation.
+     */
+    @Override
+    public Object clone() {
+        JavaSampler clone = (JavaSampler) super.clone();
+        clone.javaClass = this.javaClass;
+        clone.isToBeRegistered = this.isToBeRegistered;
+        return clone;
+    }
+
+    private void initClass() {
+        String name = getClassname().trim();
+        try {
+            javaClass = Class.forName(name, false, Thread.currentThread().getContextClassLoader());
+            Method method = javaClass.getMethod("teardownTest", new Class[]{JavaSamplerContext.class});
+            isToBeRegistered = !method.getDeclaringClass().equals(AbstractJavaSamplerClient.class);
+            log.info("Created class: " + name + ". Uses tearDownTest: " + isToBeRegistered);
+        } catch (Exception e) {
+            log.error(whoAmI() + "\tException initialising: " + name, e);
         }
+        
     }
 
     /**
@@ -110,17 +143,6 @@ public class JavaSampler extends AbstractSampler implements TestListener {
      */
     public Arguments getArguments() {
         return (Arguments) getProperty(ARGUMENTS).getObjectValue();
-    }
-
-    /**
-     * Releases Java Client.
-     */
-    private void releaseJavaClient() {
-        if (javaClient != null) {
-            javaClient.teardownTest(context);
-        }
-        javaClient = null;
-        context = null;
     }
 
     /**
@@ -154,18 +176,19 @@ public class JavaSampler extends AbstractSampler implements TestListener {
      *            the Entry for this sample
      * @return test SampleResult
      */
-    public SampleResult sample(Entry entry) {
+    @Override
+    public SampleResult sample(Entry entry) {        
         Arguments args = getArguments();
         args.addArgument(TestElement.NAME, getName()); // Allow Sampler access
                                                         // to test element name
         context = new JavaSamplerContext(args);
         if (javaClient == null) {
-            log.debug(whoAmI() + "Creating Java Client");
-            createJavaClient();
+            log.debug(whoAmI() + "\tCreating Java Client");
+            javaClient = createJavaClient();
             javaClient.setupTest(context);
         }
 
-        SampleResult result = createJavaClient().runTest(context);
+        SampleResult result = javaClient.runTest(context);
 
         // Only set the default label if it has not been set
         if (result != null && result.getSampleLabel().length() == 0) {
@@ -185,23 +208,26 @@ public class JavaSampler extends AbstractSampler implements TestListener {
      * @return JavaSamplerClient reference.
      */
     private JavaSamplerClient createJavaClient() {
-        if (javaClient == null) {
-            try {
-                Class<?> javaClass = Class.forName(getClassname().trim(), false, Thread.currentThread()
-                        .getContextClassLoader());
-                javaClient = (JavaSamplerClient) javaClass.newInstance();
-                context = new JavaSamplerContext(getArguments());
-
-                if (log.isDebugEnabled()) {
-                    log.debug(whoAmI() + "\tCreated:\t" + getClassname() + "@"
-                            + Integer.toHexString(javaClient.hashCode()));
-                }
-            } catch (Exception e) {
-                log.error(whoAmI() + "\tException creating: " + getClassname(), e);
-                javaClient = new ErrorSamplerClient();
-            }
+        if (javaClass == null) { // failed to initialise the class
+            return new ErrorSamplerClient();
         }
-        return javaClient;
+        JavaSamplerClient client;
+        try {
+            client = (JavaSamplerClient) javaClass.newInstance();
+
+            if (log.isDebugEnabled()) {
+                log.debug(whoAmI() + "\tCreated:\t" + getClassname() + "@"
+                        + Integer.toHexString(client.hashCode()));
+            }
+            
+            if(isToBeRegistered) {
+                TEAR_DOWN_SET.add(this);
+            }
+        } catch (Exception e) {
+            log.error(whoAmI() + "\tException creating: " + getClassname(), e);
+            client = new ErrorSamplerClient();
+        }
+        return client;
     }
 
     /**
@@ -229,15 +255,19 @@ public class JavaSampler extends AbstractSampler implements TestListener {
         return sb.toString();
     }
 
-    // TestListener implementation
-    /* Implements TestListener.testStarted() */
+    // TestStateListener implementation
+    /* Implements TestStateListener.testStarted() */
+    @Override
     public void testStarted() {
         log.debug(whoAmI() + "\ttestStarted");
+        initClass();
     }
 
-    /* Implements TestListener.testStarted(String) */
+    /* Implements TestStateListener.testStarted(String) */
+    @Override
     public void testStarted(String host) {
         log.debug(whoAmI() + "\ttestStarted(" + host + ")");
+        initClass();
     }
 
     /**
@@ -247,25 +277,24 @@ public class JavaSampler extends AbstractSampler implements TestListener {
      * constructor) and notify them that the test has ended, allowing the
      * JavaSamplerClients to cleanup.
      */
+    @Override
     public void testEnded() {
         log.debug(whoAmI() + "\ttestEnded");
-        synchronized (allSamplers) {
-            Iterator<JavaSampler> i = allSamplers.iterator();
-            while (i.hasNext()) {
-                JavaSampler sampler = i.next();
-                sampler.releaseJavaClient();
-                i.remove();
+        synchronized (TEAR_DOWN_SET) {
+            for (JavaSampler javaSampler : TEAR_DOWN_SET) {
+                JavaSamplerClient client = javaSampler.javaClient;
+                if (client != null) {
+                    client.teardownTest(javaSampler.context);
+                }
             }
+            TEAR_DOWN_SET.clear();
         }
     }
 
-    /* Implements TestListener.testEnded(String) */
+    /* Implements TestStateListener.testEnded(String) */
+    @Override
     public void testEnded(String host) {
         testEnded();
-    }
-
-    /* Implements TestListener.testIterationStart(LoopIterationEvent) */
-    public void testIterationStart(LoopIterationEvent event) {
     }
 
     /**
@@ -281,6 +310,7 @@ public class JavaSampler extends AbstractSampler implements TestListener {
          *
          * @see JavaSamplerClient#runTest(JavaSamplerContext)
          */
+        @Override
         public SampleResult runTest(JavaSamplerContext p_context) {
             log.debug(whoAmI() + "\trunTest");
             Thread.yield();

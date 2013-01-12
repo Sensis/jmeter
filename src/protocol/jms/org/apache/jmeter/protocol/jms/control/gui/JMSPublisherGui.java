@@ -42,8 +42,7 @@ import org.apache.jorphan.gui.JLabeledTextArea;
 import org.apache.jorphan.gui.JLabeledTextField;
 
 /**
- * This is the GUI for JMS Publisher <br>
- * Created on: October 13, 2003
+ * This is the GUI for JMS Publisher
  *
  */
 public class JMSPublisherGui extends AbstractSamplerGui implements ChangeListener {
@@ -66,12 +65,17 @@ public class JMSPublisherGui extends AbstractSamplerGui implements ChangeListene
     public static final String MAP_MSG_RSC = "jms_map_message"; //$NON-NLS-1$
     /** Create an ObjectMessage */
     public static final String OBJECT_MSG_RSC = "jms_object_message"; //$NON-NLS-1$
+    /** Create a BytesMessage */
+    public static final String BYTES_MSG_RSC = "jms_bytes_message"; //$NON-NLS-1$
     //-- End of names used in JMX files
+
+    // Button group resources when Bytes Message is selected
+    private static final String[] CONFIG_ITEMS_BYTES_MSG = { USE_FILE_RSC, USE_RANDOM_RSC};
 
     // Button group resources
     private static final String[] CONFIG_ITEMS = { USE_FILE_RSC, USE_RANDOM_RSC, USE_TEXT_RSC };
 
-    private static final String[] MSGTYPES_ITEMS = { TEXT_MSG_RSC, MAP_MSG_RSC, OBJECT_MSG_RSC };
+    private static final String[] MSGTYPES_ITEMS = { TEXT_MSG_RSC, MAP_MSG_RSC, OBJECT_MSG_RSC, BYTES_MSG_RSC };
 
     private final JCheckBox useProperties = new JCheckBox(JMeterUtils.getResString("jms_use_properties_file"), false); //$NON-NLS-1$
 
@@ -97,18 +101,18 @@ public class JMSPublisherGui extends AbstractSamplerGui implements ChangeListene
 
     private final FilePanel randomFile = new FilePanel(JMeterUtils.getResString("jms_random_file"), ALL_FILES); //$NON-NLS-1$
 
-    private final JLabeledTextArea textMessage = new JLabeledTextArea(JMeterUtils.getResString("jms_text_message"));
+    private final JLabeledTextArea textMessage = new JLabeledTextArea(JMeterUtils.getResString("jms_text_area"));
 
     private final JLabeledRadioI18N msgChoice = new JLabeledRadioI18N("jms_message_type", MSGTYPES_ITEMS, TEXT_MSG_RSC); //$NON-NLS-1$
     
     private JCheckBox useNonPersistentDelivery;
 
     // These are the names of properties used to define the labels
-    private final static String DEST_SETUP_STATIC = "jms_dest_setup_static"; // $NON-NLS-1$
+    private static final String DEST_SETUP_STATIC = "jms_dest_setup_static"; // $NON-NLS-1$
 
-    private final static String DEST_SETUP_DYNAMIC = "jms_dest_setup_dynamic"; // $NON-NLS-1$
+    private static final String DEST_SETUP_DYNAMIC = "jms_dest_setup_dynamic"; // $NON-NLS-1$
     // Button group resources
-    private final static String[] DEST_SETUP_ITEMS = { DEST_SETUP_STATIC, DEST_SETUP_DYNAMIC };
+    private static final String[] DEST_SETUP_ITEMS = { DEST_SETUP_STATIC, DEST_SETUP_DYNAMIC };
 
     private final JLabeledRadioI18N destSetup =
         new JLabeledRadioI18N("jms_dest_setup", DEST_SETUP_ITEMS, DEST_SETUP_STATIC); // $NON-NLS-1$
@@ -122,6 +126,7 @@ public class JMSPublisherGui extends AbstractSamplerGui implements ChangeListene
     /**
      * the name of the property for the JMSPublisherGui is jms_publisher.
      */
+    @Override
     public String getLabelResource() {
         return "jms_publisher"; //$NON-NLS-1$
     }
@@ -129,6 +134,7 @@ public class JMSPublisherGui extends AbstractSamplerGui implements ChangeListene
     /**
      * @see org.apache.jmeter.gui.JMeterGUIComponent#createTestElement()
      */
+    @Override
     public TestElement createTestElement() {
       PublisherSampler sampler = new PublisherSampler();
       setupSamplerProperties(sampler);
@@ -140,6 +146,7 @@ public class JMSPublisherGui extends AbstractSamplerGui implements ChangeListene
      *
      * @see org.apache.jmeter.gui.JMeterGUIComponent#modifyTestElement(TestElement)
      */
+    @Override
     public void modifyTestElement(TestElement s) {
         PublisherSampler sampler = (PublisherSampler) s;
         setupSamplerProperties(sampler);
@@ -228,6 +235,7 @@ public class JMSPublisherGui extends AbstractSamplerGui implements ChangeListene
         msgChoice.setText(""); // $NON-NLS-1$
         configChoice.setText(USE_TEXT_RSC);
         updateConfig(USE_TEXT_RSC);
+        msgChoice.setText(TEXT_MSG_RSC);
         iterations.setText("1"); // $NON-NLS-1$
         useAuth.setSelected(false);
         jmsUser.setEnabled(false);
@@ -264,15 +272,19 @@ public class JMSPublisherGui extends AbstractSamplerGui implements ChangeListene
         destSetup.setText(sampler.isDestinationStatic() ? DEST_SETUP_STATIC : DEST_SETUP_DYNAMIC);
         useNonPersistentDelivery.setSelected(sampler.getUseNonPersistentDelivery());
         jmsPropertiesPanel.configure(sampler.getJMSProperties());
+        updateChoice(msgChoice.getText());
     }
 
     /**
      * When a widget state changes, it will notify this class so we can
      * enable/disable the correct items.
      */
+    @Override
     public void stateChanged(ChangeEvent event) {
         if (event.getSource() == configChoice) {
             updateConfig(configChoice.getText());
+        } else if (event.getSource() == msgChoice) {
+            updateChoice(msgChoice.getText());
         } else if (event.getSource() == useProperties) {
             jndiICF.setEnabled(!useProperties.isSelected());
             urlField.setEnabled(!useProperties.isSelected());
@@ -281,7 +293,26 @@ public class JMSPublisherGui extends AbstractSamplerGui implements ChangeListene
             jmsPwd.setEnabled(useAuth.isSelected());
         }
     }
-
+    /**
+     * Update choice contains the actual logic for hiding or showing Textarea if Bytes message
+     * is selected
+     *
+     * @param command
+     * @since 2.9
+     */
+    private void updateChoice(String command) {
+        String oldChoice = configChoice.getText();
+        if (BYTES_MSG_RSC.equals(command)) {
+            String newChoice = USE_TEXT_RSC.equals(oldChoice) ? 
+                    USE_FILE_RSC : oldChoice;
+            configChoice.resetButtons(CONFIG_ITEMS_BYTES_MSG, newChoice);
+            textMessage.setEnabled(false);
+        } else {
+            configChoice.resetButtons(CONFIG_ITEMS, oldChoice);
+            textMessage.setEnabled(true);
+        }
+        validate();
+    }
     /**
      * Update config contains the actual logic for enabling or disabling text
      * message, file or random path.

@@ -29,21 +29,16 @@ import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.save.CSVSaveService;
 import org.apache.jmeter.testelement.AbstractTestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
@@ -53,7 +48,7 @@ import org.apache.log.Logger;
  * A base class for all JDBC test elements handling the basics of a SQL request.
  * 
  */
-public abstract class AbstractJDBCTestElement extends AbstractTestElement implements TestListener{
+public abstract class AbstractJDBCTestElement extends AbstractTestElement implements TestStateListener{
     private static final long serialVersionUID = 235L;
 
     private static final Logger log = LoggingManager.getLoggerForClass();
@@ -62,11 +57,6 @@ public abstract class AbstractJDBCTestElement extends AbstractTestElement implem
     private static final char COMMA_CHAR = ',';
 
     private static final String UNDERSCORE = "_"; // $NON-NLS-1$
-
-    // This value is used for both the connection (perConnCache) and statement (preparedStatementMap) caches.
-    // TODO - do they have to be the same size?
-    private static final int MAX_ENTRIES =
-        JMeterUtils.getPropDefault("jdbcsampler.cachesize",200); // $NON-NLS-1$
 
     // String used to indicate a null value
     private static final String NULL_MARKER =
@@ -126,22 +116,10 @@ public abstract class AbstractJDBCTestElement extends AbstractTestElement implem
     /**
      *  Cache of PreparedStatements stored in a per-connection basis. Each entry of this
      *  cache is another Map mapping the statement string to the actual PreparedStatement.
-     *  The cache has a fixed size of MAX_ENTRIES and it will throw away all PreparedStatements
-     *  from the least recently used connections.
+     *  At one time a Connection is only held by one thread
      */
     private static final Map<Connection, Map<String, PreparedStatement>> perConnCache =
-        Collections.synchronizedMap(new LinkedHashMap<Connection, Map<String, PreparedStatement>>(MAX_ENTRIES){
-        private static final long serialVersionUID = 1L;
-        @Override
-        protected boolean removeEldestEntry(Map.Entry<Connection, Map<String, PreparedStatement>> arg0) {
-            if (size() > MAX_ENTRIES) {
-                final  Map<String, PreparedStatement> value = arg0.getValue();
-                closeAllStatements(value.values());
-                return true;
-            }
-            return false;
-        }
-    });
+            new ConcurrentHashMap<Connection, Map<String, PreparedStatement>>();
 
     /**
      * Creates a JDBCSampler.
@@ -342,24 +320,9 @@ public abstract class AbstractJDBCTestElement extends AbstractTestElement implem
     private PreparedStatement getPreparedStatement(Connection conn, boolean callable) throws SQLException {
         Map<String, PreparedStatement> preparedStatementMap = perConnCache.get(conn);
         if (null == preparedStatementMap ) {
-            // MRU PreparedStatements cache.
-            preparedStatementMap = Collections.synchronizedMap(new LinkedHashMap<String, PreparedStatement>(MAX_ENTRIES) {
-                private static final long serialVersionUID = 240L;
-
-                @Override
-                protected boolean removeEldestEntry(Map.Entry<String, PreparedStatement> arg0) {
-                    final int theSize = size();
-                    if (theSize > MAX_ENTRIES) {
-                        Object value = arg0.getValue();
-                        if (value instanceof PreparedStatement) {
-                            PreparedStatement pstmt = (PreparedStatement) value;
-                            close(pstmt);
-                        }
-                        return true;
-                    }
-                    return false;
-                }
-            });
+            preparedStatementMap = new ConcurrentHashMap<String, PreparedStatement>();
+            // As a connection is held by only one thread, we cannot already have a 
+            // preparedStatementMap put by another thread
             perConnCache.put(conn, preparedStatementMap);
         }
         PreparedStatement pstmt = preparedStatementMap.get(getQuery());
@@ -369,6 +332,8 @@ public abstract class AbstractJDBCTestElement extends AbstractTestElement implem
             } else {
                 pstmt = conn.prepareStatement(getQuery());
             }
+            // PreparedStatementMap is associated to one connection so 
+            //  2 threads cannot use the same PreparedStatement map at the same time
             preparedStatementMap.put(getQuery(), pstmt);
         }
         pstmt.clearParameters();
@@ -593,55 +558,40 @@ public abstract class AbstractJDBCTestElement extends AbstractTestElement implem
         this.resultVariable = resultVariable;
     }    
 
-    /** 
-     * {@inheritDoc}}
-	 */
-	@Override
-	public List<String> getSearchableTokens() throws Exception {
-		List<String> result = super.getSearchableTokens();
-		Set<String> properties = new HashSet<String>();
-		properties.addAll(Arrays.asList(new String[]{
-			"dataSource",
-			"query",
-			"queryArguments",
-			"queryArgumentsTypes",
-			"queryType",
-			"resultVariable",
-			"variableNames"
-		}));
-		addPropertiesValues(result, properties);
-        return result;
-	}
 
 	/** 
 	 * {@inheritDoc}
-	 * @see org.apache.jmeter.testelement.TestListener#testStarted()
+	 * @see org.apache.jmeter.testelement.TestStateListener#testStarted()
 	 */
-	public void testStarted() {
+	@Override
+    public void testStarted() {
 		testStarted("");
 	}
 
 	/**
 	 * {@inheritDoc}
-	 * @see org.apache.jmeter.testelement.TestListener#testStarted(java.lang.String)
+	 * @see org.apache.jmeter.testelement.TestStateListener#testStarted(java.lang.String)
 	 */
-	public void testStarted(String host) {
+	@Override
+    public void testStarted(String host) {
 		cleanCache();
 	}
 
 	/**
 	 * {@inheritDoc}
-	 * @see org.apache.jmeter.testelement.TestListener#testEnded()
+	 * @see org.apache.jmeter.testelement.TestStateListener#testEnded()
 	 */
-	public void testEnded() {
+	@Override
+    public void testEnded() {
 		testEnded("");
 	}
 
 	/**
 	 * {@inheritDoc}
-	 * @see org.apache.jmeter.testelement.TestListener#testEnded(java.lang.String)
+	 * @see org.apache.jmeter.testelement.TestStateListener#testEnded(java.lang.String)
 	 */
-	public void testEnded(String host) {
+	@Override
+    public void testEnded(String host) {
 		cleanCache();		
 	}
 	
@@ -649,17 +599,10 @@ public abstract class AbstractJDBCTestElement extends AbstractTestElement implem
 	 * Clean cache of PreparedStatements
 	 */
 	private static final void cleanCache() {
-		for (Map.Entry<Connection, Map<String, PreparedStatement>> element : perConnCache.entrySet()) {
-			closeAllStatements(element.getValue().values());
+		for (Map<String, PreparedStatement> element : perConnCache.values()) {
+			closeAllStatements(element.values());
 		}
 		perConnCache.clear();
 	}
 
-	/**
-	 * {@inheritDoc}
-	 * @see org.apache.jmeter.testelement.TestListener#testIterationStart(org.apache.jmeter.engine.event.LoopIterationEvent)
-	 */
-	public void testIterationStart(LoopIterationEvent event) {
-		// NOOP
-	}  
 }

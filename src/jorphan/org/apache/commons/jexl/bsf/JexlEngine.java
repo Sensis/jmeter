@@ -81,6 +81,7 @@ public class JexlEngine extends BSFEngineImpl {
     }
 
     /** {@inheritDoc} */
+    @Override
     public Object eval(String fileName, int lineNo, int colNo, Object expr)
             throws BSFException {
         if (expr == null) {
@@ -97,8 +98,7 @@ public class JexlEngine extends BSFEngineImpl {
             }
             return jExpr.execute(jc);
         } catch (Exception e) {
-            // TODO Better messages
-            throw new BSFException(e.getMessage());
+            throw new BSFException(BSFException.REASON_OTHER_ERROR, e.getMessage(), e);
         }
     }
 
@@ -120,7 +120,7 @@ public class JexlEngine extends BSFEngineImpl {
             }
             jExpr.execute(jc);
         } catch (Exception e) {
-            throw new BSFException(e.getMessage());
+            throw new BSFException(BSFException.REASON_OTHER_ERROR, e.getMessage(), e);
         }
     }
 
@@ -132,6 +132,7 @@ public class JexlEngine extends BSFEngineImpl {
     }
 
     /** {@inheritDoc} */
+    @Override
     public Object call(Object object, String name, Object[] args)
             throws BSFException {
         try {
@@ -142,7 +143,7 @@ public class JexlEngine extends BSFEngineImpl {
             Method m = object.getClass().getMethod(name, types);
             return m.invoke(object, args);
         } catch (Exception e) {
-            throw new BSFException(e.getMessage());
+            throw new BSFException(BSFException.REASON_OTHER_ERROR, e.getMessage(), e);
         }
     }
 

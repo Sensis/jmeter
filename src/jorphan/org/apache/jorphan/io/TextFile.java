@@ -99,6 +99,7 @@ public class TextFile extends File {
      */
     public TextFile(String filename, String encoding) {
         super(filename);
+        setEncoding(encoding);
     }
 
     /**
@@ -190,18 +191,19 @@ public class TextFile extends File {
 	 */
 	@Override
 	public boolean equals(Object obj) {
-		if (this == obj)
+		if (this == obj) {
 			return true;
-		if (!super.equals(obj))
+		}
+		if (!super.equals(obj)) {
 			return false;
-		if (!(obj instanceof TextFile))
+		}
+		if (!(obj instanceof TextFile)) {
 			return false;
+		}
 		TextFile other = (TextFile) obj;
 		if (encoding == null) {
-			if (other.encoding != null)
-				return false;
-		} else if (!encoding.equals(other.encoding))
-			return false;
-		return true;
+		    return other.encoding == null;
+		} 
+		return encoding.equals(other.encoding);
 	}
 }

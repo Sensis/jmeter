@@ -43,6 +43,7 @@ public class RenderAsHTML extends SamplerResultTab implements ResultRenderer {
     private static final EditorKit defaultHtmlEditor = JEditorPane.createEditorKitForContentType(TEXT_HTML);
 
     /** {@inheritDoc} */
+    @Override
     public void renderResult(SampleResult sampleResult) {
         // get the text response and image icon
         // to determine which is NOT null
@@ -97,10 +98,13 @@ public class RenderAsHTML extends SamplerResultTab implements ResultRenderer {
          */
         results.getDocument().putProperty("IgnoreCharsetDirective", Boolean.TRUE); // $NON-NLS-1$
 
-        results.setText(html);
+        try {
+            results.setText(html); // Bug can generate RTE
+        } catch (RuntimeException rte) {
+            results.setText("Failed to parse HTML: " + rte.getMessage());
+        }
         results.setCaretPosition(0);
         resultsScrollPane.setViewportView(results);
-
     }
 
     private static class LocalHTMLEditorKit extends HTMLEditorKit {

@@ -26,7 +26,7 @@ import javax.jms.Message;
 import javax.jms.MessageConsumer;
 import javax.jms.Session;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.protocol.jms.Utils;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
@@ -35,7 +35,7 @@ import org.apache.log.Logger;
  * Receiver of pseudo-synchronous reply messages.
  *
  */
-public class Receiver implements Runnable {
+public final class Receiver implements Runnable {
     private static final Logger log = LoggingManager.getLoggerForClass();
 
     private volatile boolean active;
@@ -103,6 +103,7 @@ public class Receiver implements Runnable {
         return receiver;
     }
 
+    @Override
     public void run() {
         active = true;
         Message reply;

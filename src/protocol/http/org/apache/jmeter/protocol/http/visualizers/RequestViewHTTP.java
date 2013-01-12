@@ -27,8 +27,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.Set;
 import java.util.Map.Entry;
+import java.util.Set;
 
 import javax.swing.JPanel;
 import javax.swing.JSplitPane;
@@ -137,6 +137,7 @@ public class RequestViewHTTP implements RequestView {
     /* (non-Javadoc)
      * @see org.apache.jmeter.visualizers.request.RequestView#init()
      */
+    @Override
     public void init() {
         paneParsed = new JPanel(new BorderLayout(0, 5));
         paneParsed.add(createRequestPane());
@@ -145,6 +146,7 @@ public class RequestViewHTTP implements RequestView {
     /* (non-Javadoc)
      * @see org.apache.jmeter.visualizers.request.RequestView#clearData()
      */
+    @Override
     public void clearData() {
         requestModel.clearData();
         paramsModel.clearData();
@@ -154,6 +156,7 @@ public class RequestViewHTTP implements RequestView {
     /* (non-Javadoc)
      * @see org.apache.jmeter.visualizers.request.RequestView#setSamplerResult(java.lang.Object)
      */
+    @Override
     public void setSamplerResult(Object objectResult) {
 
         if (objectResult instanceof HTTPSampleResult) {
@@ -246,7 +249,8 @@ public class RequestViewHTTP implements RequestView {
             }
             String value = ""; // empty init // $NON-NLS-1$
             if (paramSplit.length > 1) {
-                value = paramSplit[1];
+                // We use substring to keep = sign (Bug 54055), we are sure = is present
+                value = param.substring(param.indexOf("=")+1); // $NON-NLS-1$
             }
             map.put(name, value);
         }
@@ -264,15 +268,19 @@ public class RequestViewHTTP implements RequestView {
         if (query != null && query.length() > 0) {
             try {
                 query = URLDecoder.decode(query, CHARSET_DECODE); // better ISO-8859-1 than UTF-8
-            } catch (UnsupportedEncodingException uee) {
-                log.warn("Error in parse query:" + query, uee);
+            } catch(IllegalArgumentException e) {
+                log.warn("Error decoding query, maybe your request parameters should be encoded:" + query, e);
                 return null;
-            }
+            } catch (UnsupportedEncodingException uee) {
+                log.warn("Error decoding query, maybe your request parameters should be encoded:" + query, uee);
+                return null;
+            } 
             return query;
         }
         return null;
     }
 
+    @Override
     public JPanel getPanel() {
         return paneParsed;
     }
@@ -338,6 +346,7 @@ public class RequestViewHTTP implements RequestView {
     /* (non-Javadoc)
      * @see org.apache.jmeter.visualizers.request.RequestView#getLabel()
      */
+    @Override
     public String getLabel() {
         return JMeterUtils.getResString(KEY_LABEL);
     }

@@ -22,13 +22,14 @@ import java.io.Serializable;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.jmeter.processor.PostProcessor;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.AbstractScopedTestElement;
 import org.apache.jmeter.testelement.property.IntegerProperty;
 import org.apache.jmeter.threads.JMeterContext;
 import org.apache.jmeter.threads.JMeterVariables;
+import org.apache.jmeter.util.Document;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
@@ -62,6 +63,7 @@ public class RegexExtractor extends AbstractScopedTestElement implements PostPro
     public static final String USE_HDRS = "true"; // $NON-NLS-1$
     public static final String USE_BODY = "false"; // $NON-NLS-1$
     public static final String USE_BODY_UNESCAPED = "unescaped"; // $NON-NLS-1$
+    public static final String USE_BODY_AS_DOCUMENT = "as_document"; // $NON-NLS-1$
     public static final String USE_URL = "URL"; // $NON-NLS-1$
     public static final String USE_CODE = "code"; // $NON-NLS-1$
     public static final String USE_MESSAGE = "message"; // $NON-NLS-1$
@@ -89,6 +91,7 @@ public class RegexExtractor extends AbstractScopedTestElement implements PostPro
      *
      * @see org.apache.jmeter.processor.PostProcessor#process()
      */
+    @Override
     public void process() {
         initTemplate();
         JMeterContext context = getThreadContext();
@@ -107,11 +110,12 @@ public class RegexExtractor extends AbstractScopedTestElement implements PostPro
         if (defaultValue.length() > 0){// Only replace default if it is provided
             vars.put(refName, defaultValue);
         }
-
-
+        Perl5Matcher matcher = JMeterUtils.getMatcher();
         String regex = getRegex();
+        Pattern pattern = null;
         try {
-            List<MatchResult> matches = processMatches(regex, previousResult, matchNumber, vars);
+            pattern = JMeterUtils.getPatternCache().getPattern(regex, Perl5Compiler.READ_ONLY_MASK);
+            List<MatchResult> matches = processMatches(pattern, regex, previousResult, matchNumber, vars);
             int prevCount = 0;
             String prevString = vars.get(refName + REF_MATCH_NR);
             if (prevString != null) {
@@ -158,7 +162,25 @@ public class RegexExtractor extends AbstractScopedTestElement implements PostPro
                 log.warn("Error while generating result");
             }
         } catch (MalformedCachePatternException e) {
-            log.warn("Error in pattern: " + regex);
+            log.error("Error in pattern: " + regex);
+        } finally {
+            clearMatcherMemory(matcher, pattern);
+        }
+    }
+
+    /**
+     * Hack to make matcher clean the two internal buffers it keeps in memory which size is equivalent to 
+     * the unzipped page size
+     * @param matcher {@link Perl5Matcher}
+     * @param pattern Pattern
+     */
+    private final void clearMatcherMemory(Perl5Matcher matcher, Pattern pattern) {
+        try {
+            if(pattern != null) {
+                matcher.matches("", pattern); // $NON-NLS-1$
+            }
+        } catch (Exception e) {
+            // NOOP
         }
     }
 
@@ -167,7 +189,8 @@ public class RegexExtractor extends AbstractScopedTestElement implements PostPro
                 : useHeaders() ? result.getResponseHeaders()
                 : useCode() ? result.getResponseCode() // Bug 43451
                 : useMessage() ? result.getResponseMessage() // Bug 43451
-                : useUnescapedBody() ? StringEscapeUtils.unescapeHtml(result.getResponseDataAsString())
+                : useUnescapedBody() ? StringEscapeUtils.unescapeHtml4(result.getResponseDataAsString())
+                : useBodyAsDocument() ? Document.getTextFromDocument(result.getResponseData())
                 : result.getResponseDataAsString() // Bug 36898
                 ;
        if (log.isDebugEnabled()) {
@@ -176,13 +199,12 @@ public class RegexExtractor extends AbstractScopedTestElement implements PostPro
        return inputString;
     }
 
-    private List<MatchResult> processMatches(String regex, SampleResult result, int matchNumber, JMeterVariables vars) {
+    private List<MatchResult> processMatches(Pattern pattern, String regex, SampleResult result, int matchNumber, JMeterVariables vars) {
         if (log.isDebugEnabled()) {
             log.debug("Regex = " + regex);
         }
 
         Perl5Matcher matcher = JMeterUtils.getMatcher();
-        Pattern pattern = JMeterUtils.getPatternCache().getPattern(regex, Perl5Compiler.READ_ONLY_MASK);
         List<MatchResult> matches = new ArrayList<MatchResult>();
         int found = 0;
 
@@ -435,6 +457,11 @@ public class RegexExtractor extends AbstractScopedTestElement implements PostPro
         return USE_BODY_UNESCAPED.equalsIgnoreCase(prop);// $NON-NLS-1$
     }
 
+    public boolean useBodyAsDocument() {
+        String prop = getPropertyAsString(MATCH_AGAINST);
+        return USE_BODY_AS_DOCUMENT.equalsIgnoreCase(prop);// $NON-NLS-1$
+    }
+
     public boolean useUrl() {
         String prop = getPropertyAsString(MATCH_AGAINST);
         return USE_URL.equalsIgnoreCase(prop);
@@ -452,17 +479,5 @@ public class RegexExtractor extends AbstractScopedTestElement implements PostPro
 
     public void setUseField(String actionCommand) {
         setProperty(MATCH_AGAINST,actionCommand);
-    }
-    
-    /** 
-     * {@inheritDoc}}
-     */
-    @Override
-    public List<String> getSearchableTokens() throws Exception {
-        List<String> result = super.getSearchableTokens();
-        result.add(getRefName());
-        result.add(getDefaultValue());
-        result.add(getRegex());
-        return result;
     }
 }

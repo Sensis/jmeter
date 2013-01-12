@@ -13,7 +13,7 @@
   ------------------
 
   Details of the latest version can be found on the Java Apache 
-  Project web site (http://jakarta.apache.org/jmeter).
+  Project web site (http://jmeter.apache.org/).
 
   Requirements
   ------------
@@ -22,7 +22,7 @@
 
    o  Java Interpreter:
 
-      A fully compliant Java 1.5 (or later) Runtime Environment is required 
+      A fully compliant Java 6 (or later) Runtime Environment is required 
       for Apache JMeter to execute.
 
    o  Optional jars:

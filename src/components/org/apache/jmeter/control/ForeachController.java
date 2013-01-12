@@ -21,10 +21,10 @@ package org.apache.jmeter.control;
 import java.io.Serializable;
 
 import org.apache.jmeter.samplers.Sampler;
-import org.apache.jmeter.threads.JMeterContext;
-import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.jmeter.testelement.property.BooleanProperty;
 import org.apache.jmeter.testelement.property.StringProperty;
+import org.apache.jmeter.threads.JMeterContext;
+import org.apache.jmeter.threads.JMeterVariables;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
 
@@ -33,11 +33,17 @@ public class ForeachController extends GenericController implements Serializable
 
     private static final long serialVersionUID = 240L;
 
-    private final static String INPUTVAL = "ForeachController.inputVal";// $NON-NLS-1$
+    private static final String INPUTVAL = "ForeachController.inputVal";// $NON-NLS-1$
 
-    private final static String RETURNVAL = "ForeachController.returnVal";// $NON-NLS-1$
+    private static final String START_INDEX = "ForeachController.startIndex";// $NON-NLS-1$
 
-    private final static String USE_SEPARATOR = "ForeachController.useSeparator";// $NON-NLS-1$
+    private static final String END_INDEX = "ForeachController.endIndex";// $NON-NLS-1$
+
+    private static final String RETURNVAL = "ForeachController.returnVal";// $NON-NLS-1$
+
+    private static final String USE_SEPARATOR = "ForeachController.useSeparator";// $NON-NLS-1$
+
+    private static final String INDEX_DEFAULT_VALUE = ""; // start/end index default value for string getters and setters
 
     private int loopCount = 0;
 
@@ -45,7 +51,53 @@ public class ForeachController extends GenericController implements Serializable
 
     public ForeachController() {
     }
+    
 
+    /**
+     * @param startIndex Start index  of loop
+     */
+    public void setStartIndex(String startIndex) {
+        setProperty(START_INDEX, startIndex, INDEX_DEFAULT_VALUE);
+    }
+
+    /**
+     * @return start index of loop
+     */
+    private int getStartIndex() {
+        // Although the default is not the same as for the string value, it is only used internally
+        return getPropertyAsInt(START_INDEX, 0);
+    }
+
+
+    /**
+     * @return start index of loop as String
+     */
+    public String getStartIndexAsString() {
+        return getPropertyAsString(START_INDEX, INDEX_DEFAULT_VALUE);
+    }
+    
+    /**
+     * @param endIndex End index  of loop
+     */
+    public void setEndIndex(String endIndex) {
+        setProperty(END_INDEX, endIndex, INDEX_DEFAULT_VALUE);
+    }
+
+    /**
+     * @return end index of loop
+     */
+    private int getEndIndex() {
+        // Although the default is not the same as for the string value, it is only used internally
+        return getPropertyAsInt(END_INDEX, Integer.MAX_VALUE);
+    }
+    
+    /**
+     * @return end index of loop
+     */
+    public String getEndIndexAsString() {
+        return getPropertyAsString(END_INDEX, INDEX_DEFAULT_VALUE);
+    }
+    
     public void setInputVal(String inputValue) {
         setProperty(new StringProperty(INPUTVAL, inputValue));
     }
@@ -89,8 +141,16 @@ public class ForeachController extends GenericController implements Serializable
      */
     @Override
     public boolean isDone() {
+        if (loopCount >= getEndIndex()) {
+            return true;
+        }
         JMeterContext context = getThreadContext();
-        String inputVariable = getInputVal() + getSeparator() + (loopCount + 1);
+        StringBuilder builder = new StringBuilder(
+                getInputVal().length()+getSeparator().length()+3);
+        String inputVariable = 
+                builder.append(getInputVal())
+                .append(getSeparator())
+                .append(Integer.toString(loopCount+1)).toString();
         final JMeterVariables variables = context.getVariables();
         final Object currentVariable = variables.getObject(inputVariable);
         if (currentVariable != null) {
@@ -132,7 +192,13 @@ public class ForeachController extends GenericController implements Serializable
      */
     private boolean emptyList() {
         JMeterContext context = getThreadContext();
-        String inputVariable = getInputVal() + getSeparator() + "1";// $NON-NLS-1$
+
+        StringBuilder builder = new StringBuilder(
+                getInputVal().length()+getSeparator().length()+3);
+        String inputVariable = 
+                builder.append(getInputVal())
+                .append(getSeparator())
+                .append(Integer.toString(loopCount+1)).toString();
         if (context.getVariables().getObject(inputVariable) != null) {
             return false;
         }
@@ -161,7 +227,7 @@ public class ForeachController extends GenericController implements Serializable
     }
 
     protected void resetLoopCount() {
-        loopCount = 0;
+        loopCount = getStartIndex();
     }
 
     /**
@@ -190,5 +256,16 @@ public class ForeachController extends GenericController implements Serializable
     public void triggerEndOfLoop() {
         super.triggerEndOfLoop();
         resetLoopCount();
+    }
+
+
+    /**
+     * Reset loopCount to Start index
+     * @see org.apache.jmeter.control.GenericController#initialize()
+     */
+    @Override
+    public void initialize() {
+        super.initialize();
+        loopCount = getStartIndex();
     }
 }

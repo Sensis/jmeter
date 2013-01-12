@@ -17,6 +17,8 @@
 
 package org.apache.jmeter.protocol.jms.sampler;
 
+import java.io.BufferedInputStream;
+import java.io.File;
 import java.io.FileInputStream;
 import java.io.InputStream;
 import java.io.Serializable;
@@ -29,8 +31,8 @@ import javax.jms.JMSException;
 import javax.jms.Message;
 import javax.naming.NamingException;
 
+import org.apache.commons.io.IOUtils;
 import org.apache.jmeter.config.Arguments;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.protocol.jms.Utils;
 import org.apache.jmeter.protocol.jms.client.ClientPool;
 import org.apache.jmeter.protocol.jms.client.InitialContextFactory;
@@ -38,7 +40,7 @@ import org.apache.jmeter.protocol.jms.client.Publisher;
 import org.apache.jmeter.protocol.jms.control.gui.JMSPublisherGui;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.services.FileServer;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.property.TestElementProperty;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.io.TextFile;
@@ -51,7 +53,7 @@ import com.thoughtworks.xstream.XStream;
 /**
  * This class implements the JMS Publisher sampler.
  */
-public class PublisherSampler extends BaseJMSSampler implements TestListener {
+public class PublisherSampler extends BaseJMSSampler implements TestStateListener {
 
     private static final long serialVersionUID = 233L;
 
@@ -85,6 +87,8 @@ public class PublisherSampler extends BaseJMSSampler implements TestListener {
     // Cache for object-message, only used when parsing from a file because in text-area
     // property replacement might have been used
     private Serializable object_msg_file_contents = null;
+    // Cache for bytes-message, only used when parsing from a file 
+    private byte[] bytes_msg_file_contents = null;
 
     public PublisherSampler() {
     }
@@ -92,6 +96,7 @@ public class PublisherSampler extends BaseJMSSampler implements TestListener {
     /**
      * the implementation calls testStarted() without any parameters.
      */
+    @Override
     public void testStarted(String test) {
         testStarted();
     }
@@ -99,28 +104,23 @@ public class PublisherSampler extends BaseJMSSampler implements TestListener {
     /**
      * the implementation calls testEnded() without any parameters.
      */
+    @Override
     public void testEnded(String host) {
         testEnded();
     }
 
     /**
      * endTest cleans up the client
-     *
-     * @see junit.framework.TestListener#endTest(junit.framework.Test)
      */
+    @Override
     public void testEnded() {
         log.debug("PublisherSampler.testEnded called");
         ClientPool.clearClient();
         InitialContextFactory.close();
     }
 
+    @Override
     public void testStarted() {
-    }
-
-    /**
-     * NO implementation provided for the sampler. It is necessary in this case.
-     */
-    public void testIterationStart(LoopIterationEvent event) {
     }
 
     /**
@@ -179,6 +179,10 @@ public class PublisherSampler extends BaseJMSSampler implements TestListener {
                 } else if (JMSPublisherGui.OBJECT_MSG_RSC.equals(type)){
                     Serializable omsg = getObjectContent();
                     Message msg = publisher.publish(omsg, getDestination(), getJMSProperties().getArgumentsAsMap());
+                    Utils.messageProperties(propBuffer, msg);
+                } else if (JMSPublisherGui.BYTES_MSG_RSC.equals(type)){
+                    byte[] bmsg = getBytesContent();
+                    Message msg = publisher.publish(bmsg, getDestination(), getJMSProperties().getArgumentsAsMap());
                     Utils.messageProperties(propBuffer, msg);
                 } else {
                     throw new JMSException(type+ " is not recognised");                    
@@ -293,6 +297,55 @@ public class PublisherSampler extends BaseJMSSampler implements TestListener {
     }
     
     /**
+     * This method will load the contents for the JMS BytesMessage.
+     * The contents are either loaded from file (might be cached), random file
+     * 
+     * @return byte[] as loaded from the specified input file
+     * @since 2.9
+     */
+    private  byte[] getBytesContent() {
+        if (getConfigChoice().equals(JMSPublisherGui.USE_FILE_RSC)) {
+            // in the case the test uses a file, we set it locally and
+            // prevent loading the file repeatedly
+            if (bytes_msg_file_contents == null) {
+                bytes_msg_file_contents = getFileBytesContent(getInputFile());
+            }
+
+            return bytes_msg_file_contents;
+        } else if (getConfigChoice().equals(JMSPublisherGui.USE_RANDOM_RSC)) {
+            final String fname = FSERVER.getRandomFile(getRandomPath(), new String[] {".dat"})
+                .getAbsolutePath();
+
+            return getFileBytesContent(fname);
+        } else {
+            throw new IllegalArgumentException("Type of input not handled:" + getConfigChoice());
+        }
+    }
+    
+    /**
+     * Try to load an object from a provided file, so that it can be used as body
+     * for a JMS message.
+     * An {@link IllegalStateException} will be thrown if loading the object fails.
+     * 
+     * @param path Path to the file that will be serialized
+     * @return byte[]  instance
+     * @since 2.9
+     */
+    private static byte[] getFileBytesContent(final String path) {
+        InputStream inputStream = null;
+        try {
+            File file = new File(path);
+            inputStream = new BufferedInputStream(new FileInputStream(file));
+            return IOUtils.toByteArray(inputStream, (int)file.length());
+        } catch (Exception e) {
+            log.error(e.getLocalizedMessage(), e);
+            throw new IllegalStateException("Unable to load file", e);
+        } finally {
+            JOrphanUtils.closeQuietly(inputStream);
+        }
+    }
+    
+    /**
      * Try to load an object from a provided file, so that it can be used as body
      * for a JMS message.
      * An {@link IllegalStateException} will be thrown if loading the object fails.
@@ -304,7 +357,7 @@ public class PublisherSampler extends BaseJMSSampler implements TestListener {
       Serializable readObject = null;
       InputStream inputStream = null;
       try {
-          inputStream = new FileInputStream(path);
+          inputStream = new BufferedInputStream(new FileInputStream(path));
           XStream xstream = new XStream();
         readObject = (Serializable) xstream.fromXML(inputStream, readObject);
       } catch (Exception e) {

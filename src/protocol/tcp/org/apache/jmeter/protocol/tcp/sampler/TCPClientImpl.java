@@ -32,7 +32,7 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.Charset;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
@@ -69,6 +69,7 @@ public class TCPClientImpl extends AbstractTCPClient {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void write(OutputStream os, String s)  throws IOException{
         os.write(s.getBytes(charset)); 
         os.flush();
@@ -80,6 +81,7 @@ public class TCPClientImpl extends AbstractTCPClient {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void write(OutputStream os, InputStream is) throws IOException{
         byte buff[]=new byte[512];
         while(is.read(buff) > 0){
@@ -93,6 +95,7 @@ public class TCPClientImpl extends AbstractTCPClient {
      * If there is no EOL byte defined, then reads until
      * the end of the stream is reached.
      */
+    @Override
     public String read(InputStream is) throws ReadException{
     	ByteArrayOutputStream w = new ByteArrayOutputStream();
         try {

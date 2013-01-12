@@ -25,6 +25,7 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashSet;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -39,18 +40,17 @@ import javax.naming.directory.DirContext;
 import javax.naming.directory.ModificationItem;
 import javax.naming.directory.SearchResult;
 
-import org.apache.commons.lang.StringEscapeUtils;
+import org.apache.commons.lang3.StringEscapeUtils;
 import org.apache.jmeter.config.Argument;
 import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.config.ConfigTestElement;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.protocol.ldap.config.gui.LDAPArgument;
 import org.apache.jmeter.protocol.ldap.config.gui.LDAPArguments;
 import org.apache.jmeter.samplers.AbstractSampler;
 import org.apache.jmeter.samplers.Entry;
 import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.testelement.TestElement;
-import org.apache.jmeter.testelement.TestListener;
+import org.apache.jmeter.testelement.TestStateListener;
 import org.apache.jmeter.testelement.property.PropertyIterator;
 import org.apache.jmeter.testelement.property.StringProperty;
 import org.apache.jmeter.testelement.property.TestElementProperty;
@@ -64,7 +64,7 @@ import org.apache.log.Logger;
  * test available in the LDAP Test.
  ******************************************************************************/
 
-public class LDAPExtSampler extends AbstractSampler implements TestListener {
+public class LDAPExtSampler extends AbstractSampler implements TestStateListener {
 
     private static final Logger log = LoggingManager.getLoggerForClass();
 
@@ -593,8 +593,7 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
      * @return The BasicAttribute
      **************************************************************************/
     private BasicAttribute getBasicAttribute(String name, String value) {
-        BasicAttribute attr = new BasicAttribute(name, value);
-        return attr;
+        return new BasicAttribute(name, value);
     }
 
     /**
@@ -653,7 +652,7 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
      * the whole context
      *
      **************************************************************************/
-    private void bindOp(DirContext dirContext, SampleResult res) throws NamingException {
+    private void bindOp(SampleResult res) throws NamingException {
         DirContext ctx = ldapContexts.remove(getThreadName());
         if (ctx != null) {
             log.warn("Closing previous context for thread: " + getThreadName());
@@ -718,6 +717,7 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
      *            !ToDo (Parameter description)
      * @return !ToDo (Return description)
      **************************************************************************/
+    @Override
     public SampleResult sample(Entry e) {
         XMLBuffer xmlBuffer = new XMLBuffer();
         xmlBuffer.openTag("ldapanswer"); // $NON-NLS-1$
@@ -745,7 +745,7 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
                 xmlBuffer.tag("baseobj",getRootdn()); // $NON-NLS-1$
                 xmlBuffer.tag("binddn",getUserDN()); // $NON-NLS-1$
                 xmlBuffer.tag("connectionTO",getConnTimeOut()); // $NON-NLS-1$
-                bindOp(dirContext, res);
+                bindOp(res);
             } else if (testType.equals(SBIND)) {
                 res.setSamplerData("SingleBind as "+getUserDN());
                 xmlBuffer.tag("baseobj",getRootdn()); // $NON-NLS-1$
@@ -801,7 +801,7 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
                 final String countLimit = getCountlim();
 
                 res.setSamplerData("Search with filter " + searchFilter);
-                xmlBuffer.tag("searchfilter",searchFilter); // $NON-NLS-1$
+                xmlBuffer.tag("searchfilter", StringEscapeUtils.escapeXml(searchFilter)); // $NON-NLS-1$
                 xmlBuffer.tag("baseobj",getRootdn()); // $NON-NLS-1$
                 xmlBuffer.tag("searchbase",searchBase);// $NON-NLS-1$
                 xmlBuffer.tag("scope" , scopeStr); // $NON-NLS-1$
@@ -847,7 +847,7 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
             final int indexOfLDAPErrCode = returnData.indexOf("LDAP: error code");
             if (indexOfLDAPErrCode >= 0) {
                 res.setResponseMessage(returnData.substring(indexOfLDAPErrCode + 21, returnData
-                        .indexOf("]"))); // $NON-NLS-1$
+                        .indexOf(']'))); // $NON-NLS-1$
                 res.setResponseCode(returnData.substring(indexOfLDAPErrCode + 17, indexOfLDAPErrCode + 19));
             } else {
                 res.setResponseMessage(returnData);
@@ -965,9 +965,10 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
         }
     }
 
-    private void sortAttributes(final ArrayList<Attribute> sortedAttrs) {
+    private void sortAttributes(final List<Attribute> sortedAttrs) {
         Collections.sort(sortedAttrs, new Comparator<Attribute>()
         {
+            @Override
             public int compare(Attribute o1, Attribute o2)
             {
                 String      nm1 = o1.getID();
@@ -978,7 +979,7 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
         });
     }
 
-    private void sortResults(final ArrayList<SearchResult> sortedResults) {
+    private void sortResults(final List<SearchResult> sortedResults) {
         Collections.sort(sortedResults, new Comparator<SearchResult>()
         {
             private int compareToReverse(final String s1, final String s2)
@@ -1000,6 +1001,7 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
                 return len1 - len2;
             }
 
+            @Override
             public int compare(SearchResult o1, SearchResult o2)
             {
                 String      nm1 = o1.getName();
@@ -1057,19 +1059,23 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
         return StringEscapeUtils.escapeXml(value.toString());
     }
 
+    @Override
     public void testStarted() {
         testStarted(""); // $NON-NLS-1$
     }
 
+    @Override
     public void testEnded() {
         testEnded(""); // $NON-NLS-1$
     }
 
+    @Override
     public void testStarted(String host) {
         // ignored
     }
 
     // Ensure any remaining contexts are closed
+    @Override
     public void testEnded(String host) {
         for (Map.Entry<String, DirContext> entry : ldapContexts.entrySet()) {
             DirContext dc = entry.getValue();
@@ -1081,10 +1087,6 @@ public class LDAPExtSampler extends AbstractSampler implements TestListener {
             }
         }
         ldapContexts.clear();
-    }
-
-    public void testIterationStart(LoopIterationEvent event) {
-        // ignored
     }
 
     /**

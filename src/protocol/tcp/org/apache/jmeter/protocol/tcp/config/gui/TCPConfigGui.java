@@ -19,16 +19,22 @@
 package org.apache.jmeter.protocol.tcp.config.gui;
 
 import java.awt.BorderLayout;
+import java.awt.Dimension;
+import java.awt.FlowLayout;
+import java.awt.event.ItemEvent;
+import java.awt.event.ItemListener;
 
 import javax.swing.JCheckBox;
 import javax.swing.JLabel;
 import javax.swing.JPanel;
 import javax.swing.JTextArea;
+import javax.swing.JTextField;
 
 import org.apache.jmeter.config.ConfigTestElement;
 import org.apache.jmeter.config.gui.AbstractConfigGui;
 import org.apache.jmeter.gui.ServerPanel;
 import org.apache.jmeter.gui.util.HorizontalPanel;
+import org.apache.jmeter.gui.util.TristateCheckBox;
 import org.apache.jmeter.gui.util.VerticalPanel;
 import org.apache.jmeter.protocol.tcp.sampler.TCPSampler;
 import org.apache.jmeter.testelement.TestElement;
@@ -47,7 +53,13 @@ public class TCPConfigGui extends AbstractConfigGui {
 
     // NOTUSED yet private JTextField filename;
 
-    private JCheckBox setNoDelay;
+    private TristateCheckBox setNoDelay;
+
+    private TristateCheckBox closeConnection;
+
+    private JTextField soLinger;
+
+    private JTextField eolByte;
 
     private JTextArea requestData;
 
@@ -62,6 +74,7 @@ public class TCPConfigGui extends AbstractConfigGui {
         init();
     }
 
+    @Override
     public String getLabelResource() {
         return "tcp_config_title"; // $NON-NLS-1$
     }
@@ -73,15 +86,21 @@ public class TCPConfigGui extends AbstractConfigGui {
         classname.setText(element.getPropertyAsString(TCPSampler.CLASSNAME));
         serverPanel.setServer(element.getPropertyAsString(TCPSampler.SERVER));
         // Default to original behaviour, i.e. re-use connection
-        reUseConnection.setSelected(element.getPropertyAsBoolean(TCPSampler.RE_USE_CONNECTION,true));
+        reUseConnection.setSelected(element.getPropertyAsBoolean(TCPSampler.RE_USE_CONNECTION, TCPSampler.RE_USE_CONNECTION_DEFAULT));
         serverPanel.setPort(element.getPropertyAsString(TCPSampler.PORT));
         // filename.setText(element.getPropertyAsString(TCPSampler.FILENAME));
         serverPanel.setResponseTimeout(element.getPropertyAsString(TCPSampler.TIMEOUT));
         serverPanel.setConnectTimeout(element.getPropertyAsString(TCPSampler.TIMEOUT_CONNECT));
-        setNoDelay.setSelected(element.getPropertyAsBoolean(TCPSampler.NODELAY));
+        setNoDelay.setTristateFromProperty(element, TCPSampler.NODELAY);
+//        setNoDelay.setSelected(element.getPropertyAsBoolean(TCPSampler.NODELAY));
         requestData.setText(element.getPropertyAsString(TCPSampler.REQUEST));
+        closeConnection.setTristateFromProperty(element, TCPSampler.CLOSE_CONNECTION);
+//        closeConnection.setSelected(element.getPropertyAsBoolean(TCPSampler.CLOSE_CONNECTION, TCPSampler.CLOSE_CONNECTION_DEFAULT));
+        soLinger.setText(element.getPropertyAsString(TCPSampler.SO_LINGER));
+        eolByte.setText(element.getPropertyAsString(TCPSampler.EOL_BYTE));
     }
 
+    @Override
     public TestElement createTestElement() {
         ConfigTestElement element = new ConfigTestElement();
         modifyTestElement(element);
@@ -93,6 +112,7 @@ public class TCPConfigGui extends AbstractConfigGui {
      *
      * @see org.apache.jmeter.gui.JMeterGUIComponent#modifyTestElement(TestElement)
      */
+    @Override
     public void modifyTestElement(TestElement element) {
         configureTestElement(element);
         // N.B. this will be a config element, so we cannot use the setXXX() methods
@@ -101,10 +121,15 @@ public class TCPConfigGui extends AbstractConfigGui {
         element.setProperty(TCPSampler.RE_USE_CONNECTION, reUseConnection.isSelected());
         element.setProperty(TCPSampler.PORT, serverPanel.getPort());
         // element.setProperty(TCPSampler.FILENAME, filename.getText());
-        element.setProperty(TCPSampler.NODELAY, setNoDelay.isSelected());
+        setNoDelay.setPropertyFromTristate(element, TCPSampler.NODELAY);
+//        element.setProperty(TCPSampler.NODELAY, setNoDelay.isSelected());
         element.setProperty(TCPSampler.TIMEOUT, serverPanel.getResponseTimeout());
         element.setProperty(TCPSampler.TIMEOUT_CONNECT, serverPanel.getConnectTimeout(),"");
         element.setProperty(TCPSampler.REQUEST, requestData.getText());
+        closeConnection.setPropertyFromTristate(element, TCPSampler.CLOSE_CONNECTION); // Don't use default for saving tristates
+//        element.setProperty(TCPSampler.CLOSE_CONNECTION, closeConnection.isSelected(), TCPSampler.CLOSE_CONNECTION_DEFAULT);
+        element.setProperty(TCPSampler.SO_LINGER, soLinger.getText(), "");
+        element.setProperty(TCPSampler.EOL_BYTE, eolByte.getText(), "");
     }
 
     /**
@@ -118,19 +143,22 @@ public class TCPConfigGui extends AbstractConfigGui {
         classname.setText(""); //$NON-NLS-1$
         requestData.setText(""); //$NON-NLS-1$
         reUseConnection.setSelected(true);
-        setNoDelay.setSelected(false);
+        setNoDelay.setSelected(false); // TODO should this be indeterminate?
+        closeConnection.setSelected(TCPSampler.CLOSE_CONNECTION_DEFAULT); // TODO should this be indeterminate?
+        soLinger.setText(""); //$NON-NLS-1$
+        eolByte.setText(""); //$NON-NLS-1$
     }
 
 
     private JPanel createNoDelayPanel() {
         JLabel label = new JLabel(JMeterUtils.getResString("tcp_nodelay")); // $NON-NLS-1$
 
-        setNoDelay = new JCheckBox();
+        setNoDelay = new TristateCheckBox();
         label.setLabelFor(setNoDelay);
 
-        JPanel nodelayPanel = new JPanel(new BorderLayout(5, 0));
-        nodelayPanel.add(label, BorderLayout.WEST);
-        nodelayPanel.add(setNoDelay, BorderLayout.CENTER);
+        JPanel nodelayPanel = new JPanel(new FlowLayout());
+        nodelayPanel.add(label);
+        nodelayPanel.add(setNoDelay);
         return nodelayPanel;
     }
 
@@ -138,12 +166,60 @@ public class TCPConfigGui extends AbstractConfigGui {
         JLabel label = new JLabel(JMeterUtils.getResString("reuseconnection")); //$NON-NLS-1$
 
         reUseConnection = new JCheckBox("", true);
+        reUseConnection.addItemListener(new ItemListener() {
+            @Override
+            public void itemStateChanged(final ItemEvent e) {
+                if (e.getStateChange() == ItemEvent.SELECTED) {
+                    closeConnection.setEnabled(true);
+                } else {
+                    closeConnection.setEnabled(false);
+                }
+            }
+        });
         label.setLabelFor(reUseConnection);
 
-        JPanel closePortPanel = new JPanel(new BorderLayout(5, 0));
-        closePortPanel.add(label, BorderLayout.WEST);
-        closePortPanel.add(reUseConnection, BorderLayout.CENTER);
+        JPanel closePortPanel = new JPanel(new FlowLayout());
+        closePortPanel.add(label);
+        closePortPanel.add(reUseConnection);
         return closePortPanel;
+    }
+
+    private JPanel createCloseConnectionPanel() {
+        JLabel label = new JLabel(JMeterUtils.getResString("closeconnection")); // $NON-NLS-1$
+
+        closeConnection = new TristateCheckBox("", TCPSampler.CLOSE_CONNECTION_DEFAULT);
+        label.setLabelFor(closeConnection);
+
+        JPanel closeConnectionPanel = new JPanel(new FlowLayout());
+        closeConnectionPanel.add(label);
+        closeConnectionPanel.add(closeConnection);
+        return closeConnectionPanel;
+    }
+
+    private JPanel createSoLingerOption() {
+        JLabel label = new JLabel(JMeterUtils.getResString("solinger")); //$NON-NLS-1$ 
+
+        soLinger = new JTextField(5); // 5 columns size
+        soLinger.setMaximumSize(new Dimension(soLinger.getPreferredSize()));
+        label.setLabelFor(soLinger);
+
+        JPanel soLingerPanel = new JPanel(new FlowLayout());
+        soLingerPanel.add(label);
+        soLingerPanel.add(soLinger);
+        return soLingerPanel;
+    }
+
+    private JPanel createEolBytePanel() {
+        JLabel label = new JLabel(JMeterUtils.getResString("eolbyte")); //$NON-NLS-1$ 
+
+        eolByte = new JTextField(3); // 3 columns size
+        eolByte.setMaximumSize(new Dimension(eolByte.getPreferredSize()));
+        label.setLabelFor(eolByte);
+
+        JPanel eolBytePanel = new JPanel(new FlowLayout());
+        eolBytePanel.add(label);
+        eolBytePanel.add(eolByte);
+        return eolBytePanel;
     }
 
     private JPanel createRequestPanel() {
@@ -190,7 +266,10 @@ public class TCPConfigGui extends AbstractConfigGui {
         
         HorizontalPanel optionsPanel = new HorizontalPanel();
         optionsPanel.add(createClosePortPanel());
+        optionsPanel.add(createCloseConnectionPanel());
         optionsPanel.add(createNoDelayPanel());
+        optionsPanel.add(createSoLingerOption());
+        optionsPanel.add(createEolBytePanel());
         mainPanel.add(optionsPanel);
         mainPanel.add(createRequestPanel());
 

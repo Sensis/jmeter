@@ -51,6 +51,7 @@ import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreePath;
 import javax.swing.tree.TreeSelectionModel;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.jmeter.assertions.AssertionResult;
 import org.apache.jmeter.gui.util.VerticalPanel;
 import org.apache.jmeter.samplers.Clearable;
@@ -122,8 +123,10 @@ implements ActionListener, TreeSelectionListener, Clearable, ItemListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void add(final SampleResult sample) {
         JMeterUtils.runSafe(new Runnable() {
+            @Override
             public void run() {
                 updateGui(sample);
             }
@@ -189,6 +192,7 @@ implements ActionListener, TreeSelectionListener, Clearable, ItemListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public synchronized void clearData() {
         while (root.getChildCount() > 0) {
             // the child to be removed will always be 0 'cos as the nodes are
@@ -199,6 +203,7 @@ implements ActionListener, TreeSelectionListener, Clearable, ItemListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public String getLabelResource() {
         return "view_results_tree_title"; // $NON-NLS-1$
     }
@@ -225,9 +230,13 @@ implements ActionListener, TreeSelectionListener, Clearable, ItemListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void valueChanged(TreeSelectionEvent e) {
         lastSelectionEvent = e;
-        DefaultMutableTreeNode node = (DefaultMutableTreeNode) jTree.getLastSelectedPathComponent();
+        DefaultMutableTreeNode node = null;
+        synchronized (this) {
+            node = (DefaultMutableTreeNode) jTree.getLastSelectedPathComponent();
+        }
 
         if (node != null) {
             // to restore last tab used
@@ -240,7 +249,7 @@ implements ActionListener, TreeSelectionListener, Clearable, ItemListener {
             // display a SampleResult
             if (userObject instanceof SampleResult) {
                 SampleResult sampleResult = (SampleResult) userObject;
-                if ((SampleResult.TEXT).equals(sampleResult.getDataType())){
+                if (isTextDataType(sampleResult)){
                     resultsRender.renderResult(sampleResult);
                 } else {
                     byte[] responseBytes = sampleResult.getResponseData();
@@ -250,6 +259,15 @@ implements ActionListener, TreeSelectionListener, Clearable, ItemListener {
                 }
             }
         }
+    }
+
+    /**
+     * @param sampleResult SampleResult
+     * @return true if sampleResult is text or has empty content type
+     */
+    protected static boolean isTextDataType(SampleResult sampleResult) {
+        return (SampleResult.TEXT).equals(sampleResult.getDataType())
+                || StringUtils.isEmpty(sampleResult.getDataType());
     }
 
     private synchronized Component createLeftPanel() {
@@ -318,6 +336,7 @@ implements ActionListener, TreeSelectionListener, Clearable, ItemListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void actionPerformed(ActionEvent event) {
         String command = event.getActionCommand();
         if (COMBO_CHANGE_COMMAND.equals(command)) {
@@ -347,7 +366,7 @@ implements ActionListener, TreeSelectionListener, Clearable, ItemListener {
 
     public static String getResponseAsString(SampleResult res) {
         String response = null;
-        if ((SampleResult.TEXT).equals(res.getDataType())) {
+        if (isTextDataType(res)) {
             // Showing large strings can be VERY costly, so we will avoid
             // doing so if the response
             // data is larger than 200K. TODO: instead, we could delay doing
@@ -364,7 +383,6 @@ implements ActionListener, TreeSelectionListener, Clearable, ItemListener {
                     .append(", ").append(JMeterUtils.getResString("view_results_response_partial_message"))
                     .append("\n").append(res.getResponseDataAsString().substring(0, MAX_DISPLAY_SIZE)).append("\n...");
                 response = builder.toString();
-                log.warn(response);
             } else {
                 response = res.getResponseDataAsString();
             }
@@ -402,6 +420,7 @@ implements ActionListener, TreeSelectionListener, Clearable, ItemListener {
     /**
      * Handler for Checkbox
      */
+    @Override
     public void itemStateChanged(ItemEvent e) {
         // NOOP state is held by component
     }

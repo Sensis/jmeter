@@ -26,6 +26,7 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 import javax.swing.AbstractAction;
 import javax.swing.ActionMap;
@@ -41,7 +42,6 @@ import javax.swing.JLabel;
 import javax.swing.JOptionPane;
 import javax.swing.JPanel;
 import javax.swing.JTextField;
-import javax.swing.KeyStroke;
 import javax.swing.event.DocumentEvent;
 import javax.swing.event.DocumentListener;
 import javax.swing.text.BadLocationException;
@@ -49,6 +49,7 @@ import javax.swing.text.DefaultHighlighter;
 import javax.swing.text.Document;
 import javax.swing.text.Highlighter;
 
+import org.apache.jmeter.gui.action.KeyStrokes;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
@@ -63,7 +64,7 @@ public class SearchTextExtension implements ActionListener, DocumentListener {
 
     private int lastPosition = LAST_POSITION_DEFAULT;
 
-    private final static Color HILIT_COLOR = Color.LIGHT_GRAY;
+    private static final Color HILIT_COLOR = Color.LIGHT_GRAY;
 
     private Highlighter selection;
 
@@ -150,6 +151,11 @@ public class SearchTextExtension implements ActionListener, DocumentListener {
                             .getResString("search_text_button_find"));// $NON-NLS-1$
                     results.setCaretPosition(0);
                 }
+            } catch (PatternSyntaxException pse) {
+                JOptionPane.showMessageDialog(null, 
+                        pse.toString(),// $NON-NLS-1$
+                        JMeterUtils.getResString("error_title"), // $NON-NLS-1$
+                        JOptionPane.WARNING_MESSAGE);
             } catch (BadLocationException ble) {
                 log.error("Location exception in text find", ble);// $NON-NLS-1$
             }
@@ -199,7 +205,7 @@ public class SearchTextExtension implements ActionListener, DocumentListener {
         // when Enter is pressed, search start
         InputMap im = textToFindField
                 .getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);
-        im.put(KeyStroke.getKeyStroke("ENTER"), SEARCH_TEXT_COMMAND);
+        im.put(KeyStrokes.ENTER, SEARCH_TEXT_COMMAND);
         ActionMap am = textToFindField.getActionMap();
         am.put(SEARCH_TEXT_COMMAND, new EnterAction());
 
@@ -222,6 +228,7 @@ public class SearchTextExtension implements ActionListener, DocumentListener {
      * @param e
      *            the ActionEvent being processed
      */
+    @Override
     public void actionPerformed(ActionEvent e) {
         String command = e.getActionCommand();
 
@@ -233,22 +240,26 @@ public class SearchTextExtension implements ActionListener, DocumentListener {
 
     private class EnterAction extends AbstractAction {
         private static final long serialVersionUID = 1L;
+        @Override
         public void actionPerformed(ActionEvent ev) {
             executeAndShowTextFind();
         }
     }
 
     // DocumentListener method
+    @Override
     public void changedUpdate(DocumentEvent e) {
         // do nothing
     }
 
     // DocumentListener method
+    @Override
     public void insertUpdate(DocumentEvent e) {
         resetTextToFind();
     }
 
     // DocumentListener method
+    @Override
     public void removeUpdate(DocumentEvent e) {
         resetTextToFind();
     }

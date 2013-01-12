@@ -72,6 +72,7 @@ public class BeanShellAssertion extends BeanShellTestElement implements Assertio
     /**
      * {@inheritDoc}
      */
+    @Override
     public AssertionResult getResult(SampleResult response) {
         AssertionResult result = new AssertionResult(getName());
 
@@ -104,8 +105,8 @@ public class BeanShellAssertion extends BeanShellTestElement implements Assertio
             processFileOrScript(bshInterpreter);
 
             result.setFailureMessage(bshInterpreter.get("FailureMessage").toString());//$NON-NLS-1$
-            result.setFailure(Boolean.valueOf(bshInterpreter.get("Failure") //$NON-NLS-1$
-                    .toString()).booleanValue());
+            result.setFailure(Boolean.parseBoolean(bshInterpreter.get("Failure") //$NON-NLS-1$
+                    .toString()));
             result.setError(false);
         }
         /*

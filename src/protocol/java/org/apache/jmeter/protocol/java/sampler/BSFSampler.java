@@ -18,7 +18,9 @@
 
 package org.apache.jmeter.protocol.java.sampler;
 
+import java.io.BufferedInputStream;
 import java.io.FileInputStream;
+import java.io.InputStream;
 import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
@@ -66,6 +68,7 @@ public class BSFSampler extends BSFTestElement implements Sampler, TestBean, Con
         return getName();
     }
 
+    @Override
     public SampleResult sample(Entry e)// Entry tends to be ignored ...
     {
         final String label = getLabel();
@@ -74,7 +77,7 @@ public class BSFSampler extends BSFTestElement implements Sampler, TestBean, Con
         log.debug(label + " " + fileName);
         SampleResult res = new SampleResult();
         res.setSampleLabel(label);
-        FileInputStream is = null;
+        InputStream is = null;
         BSFEngine bsfEngine = null;
         // There's little point saving the manager between invocations
         // as we need to reset most of the beans anyway
@@ -104,7 +107,7 @@ public class BSFSampler extends BSFTestElement implements Sampler, TestBean, Con
             Object bsfOut = null;
             if (fileName.length()>0) {
                 res.setSamplerData("File: "+fileName);
-                is = new FileInputStream(fileName);
+                is = new BufferedInputStream(new FileInputStream(fileName));
                 bsfOut = bsfEngine.eval(fileName, 0, 0, IOUtils.toString(is));
             } else {
                 res.setSamplerData(request);
@@ -140,6 +143,7 @@ public class BSFSampler extends BSFTestElement implements Sampler, TestBean, Con
     /**
      * @see org.apache.jmeter.samplers.AbstractSampler#applies(org.apache.jmeter.config.ConfigTestElement)
      */
+    @Override
     public boolean applies(ConfigTestElement configElement) {
         String guiClass = configElement.getProperty(TestElement.GUI_CLASS).getStringValue();
         return APPLIABLE_CONFIG_CLASSES.contains(guiClass);

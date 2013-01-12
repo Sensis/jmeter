@@ -20,13 +20,20 @@ package org.apache.jmeter.protocol.http.gui;
 
 import java.awt.BorderLayout;
 import java.awt.Dimension;
+import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.List;
 
 import javax.swing.BorderFactory;
+import javax.swing.ComboBoxModel;
+import javax.swing.DefaultComboBoxModel;
 import javax.swing.JButton;
 import javax.swing.JCheckBox;
+import javax.swing.JComboBox;
 import javax.swing.JFileChooser;
 import javax.swing.JPanel;
 import javax.swing.JScrollPane;
@@ -39,10 +46,13 @@ import org.apache.jmeter.gui.util.FileDialoger;
 import org.apache.jmeter.gui.util.HeaderAsPropertyRenderer;
 import org.apache.jmeter.gui.util.PowerTableModel;
 import org.apache.jmeter.protocol.http.control.Cookie;
+import org.apache.jmeter.protocol.http.control.CookieHandler;
 import org.apache.jmeter.protocol.http.control.CookieManager;
+import org.apache.jmeter.protocol.http.control.HC3CookieHandler;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.testelement.property.PropertyIterator;
 import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jorphan.gui.GuiUtils;
 import org.apache.jorphan.gui.JLabeledChoice;
 import org.apache.jorphan.gui.layout.VerticalLayout;
 import org.apache.jorphan.logging.LoggingManager;
@@ -69,6 +79,8 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
     private static final String LOAD_COMMAND = "Load"; //$NON-NLS-1$
 
     private static final String SAVE_COMMAND = "Save"; //$NON-NLS-1$
+
+    private static final String HANDLER_COMMAND = "Handler"; // $NON-NLS-1$
     //--
 
     private JTable cookieTable;
@@ -76,6 +88,10 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
     private PowerTableModel tableModel;
 
     private JCheckBox clearEachIteration;
+
+    private JComboBox selectHandlerPanel;
+
+    private HashMap<String, String> handlerMap = new HashMap<String, String>();
 
     private static final String[] COLUMN_RESOURCE_NAMES = {
         ("name"),   //$NON-NLS-1$
@@ -124,10 +140,12 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
         init();
     }
 
+    @Override
     public String getLabelResource() {
         return "cookie_manager_title"; //$NON-NLS-1$
     }
 
+    @Override
     public void actionPerformed(ActionEvent e) {
         String action = e.getActionCommand();
 
@@ -170,11 +188,7 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
         } else if (action.equals(ADD_COMMAND)) {
             // If a table cell is being edited, we should accept the current
             // value and stop the editing before adding a new row.
-            if (cookieTable.isEditing()) {
-                TableCellEditor cellEditor = cookieTable.getCellEditor(cookieTable.getEditingRow(),
-                        cookieTable.getEditingColumn());
-                cellEditor.stopCellEditing();
-            }
+            GuiUtils.stopTableEditing(cookieTable);
 
             tableModel.addNewRow();
             tableModel.fireTableDataChanged();
@@ -233,10 +247,9 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
      *
      * @see org.apache.jmeter.gui.JMeterGUIComponent#modifyTestElement(TestElement)
      */
+    @Override
     public void modifyTestElement(TestElement cm) {
-        if (cookieTable.isEditing()) {
-            cookieTable.getCellEditor().stopCellEditing();
-        }
+        GuiUtils.stopTableEditing(cookieTable);
         cm.clear();
         configureTestElement(cm);
         if (cm instanceof CookieManager) {
@@ -247,6 +260,7 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
             }
             cookieManager.setClearEachIteration(clearEachIteration.isSelected());
             cookieManager.setCookiePolicy(policy.getText());
+            cookieManager.setImplementation(handlerMap.get(selectHandlerPanel.getSelectedItem()));
         }
     }
 
@@ -260,6 +274,8 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
         tableModel.clearData();
         clearEachIteration.setSelected(false);
         policy.setText(CookieManager.DEFAULT_POLICY);
+        selectHandlerPanel.setSelectedItem(CookieManager.DEFAULT_IMPLEMENTATION
+                .substring(CookieManager.DEFAULT_IMPLEMENTATION.lastIndexOf('.') + 1));
         deleteButton.setEnabled(false);
         saveButton.setEnabled(false);
     }
@@ -283,6 +299,7 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
         }
     }
 
+    @Override
     public TestElement createTestElement() {
         CookieManager cookieManager = new CookieManager();
         modifyTestElement(cookieManager);
@@ -297,6 +314,8 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
         populateTable(cookieManager);
         clearEachIteration.setSelected((cookieManager).getClearEachIteration());
         policy.setText(cookieManager.getPolicy());
+        String fullImpl = cookieManager.getImplementation();
+        selectHandlerPanel.setSelectedItem(fullImpl.substring(fullImpl.lastIndexOf('.') + 1));
     }
 
     /**
@@ -315,8 +334,19 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
         JPanel northPanel = new JPanel();
         northPanel.setLayout(new VerticalLayout(5, VerticalLayout.BOTH));
         northPanel.add(makeTitlePanel());
-        northPanel.add(clearEachIteration);
-        northPanel.add(policy);
+        JPanel optionsPane = new JPanel();
+        optionsPane.setBorder(BorderFactory.createTitledBorder(
+                BorderFactory.createEtchedBorder(),
+                JMeterUtils.getResString("cookie_options"))); // $NON-NLS-1$
+        optionsPane.setLayout(new VerticalLayout(5, VerticalLayout.BOTH));
+        optionsPane.add(clearEachIteration);
+        JPanel policyTypePane = new JPanel();
+        policyTypePane.setLayout(new FlowLayout(FlowLayout.LEFT, 0, 0));
+        policyTypePane.add(policy);
+        policyTypePane.add(GuiUtils.createLabelCombo(
+                JMeterUtils.getResString("cookie_implementation_choose"), createComboHandler())); // $NON-NLS-1$
+        optionsPane.add(policyTypePane);
+        northPanel.add(optionsPane);
         add(northPanel, BorderLayout.NORTH);
         add(createCookieTablePanel(), BorderLayout.CENTER);
     }
@@ -362,5 +392,36 @@ public class CookiePanel extends AbstractConfigGui implements ActionListener {
         buttonPanel.add(loadButton);
         buttonPanel.add(saveButton);
         return buttonPanel;
+    }
+    
+    /**
+     * Create the drop-down list to changer render
+     * @return List of all render (implement ResultsRender)
+     */
+    private JComboBox createComboHandler() {
+        ComboBoxModel nodesModel = new DefaultComboBoxModel();
+        // drop-down list for renderer
+        selectHandlerPanel = new JComboBox(nodesModel);
+        selectHandlerPanel.setActionCommand(HANDLER_COMMAND);
+        selectHandlerPanel.addActionListener(this);
+
+        // if no results render in jmeter.properties, load Standard (default)
+        List<String> classesToAdd = Collections.<String>emptyList();
+        try {
+            classesToAdd = JMeterUtils.findClassesThatExtend(CookieHandler.class);
+        } catch (IOException e1) {
+            // ignored
+        }
+        String tmpName = null;
+        for (String clazz : classesToAdd) {
+            String shortClazz = clazz.substring(clazz.lastIndexOf('.') + 1);
+            if (HC3CookieHandler.class.getName().equals(clazz)) {
+                tmpName = shortClazz;
+            }
+            selectHandlerPanel.addItem(shortClazz);
+            handlerMap.put(shortClazz, clazz);
+        }
+        nodesModel.setSelectedItem(tmpName); // preset to default impl
+        return selectHandlerPanel;
     }
 }

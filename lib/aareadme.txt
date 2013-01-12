@@ -60,6 +60,10 @@ commons-lang-2.6
 ----------------
 http://commons.apache.org/downloads/download_lang.cgi
 - velocity (Anakia)
+
+commons-lang3-3.1
+----------------
+http://commons.apache.org/downloads/download_lang.cgi
 - URLCollection (unescapeXml)
 
 commons-logging-1.1.1
@@ -105,7 +109,22 @@ http://www.jdom.org/downloads/index.html
 - XMLAssertion, JMeterTest ONLY
 - Anakia
 
-rhino-1.7R3
+jodd-core-3.4.0
+--------
+http://www.jodd.org/
+- CSS/JQuery like extractor dependency
+
+jodd-lagarto-3.4.0
+--------
+http://jodd.org/doc/csselly/
+- CSS/JQuery like extractor
+
+jsoup-1.7.1
+--------
+http://www.jsoup.org/
+- CSS/JQuery like extractor
+
+rhino-1.7R4
 --------
 http://www.mozilla.org/rhino/download.html
 - javascript function
@@ -140,6 +159,11 @@ serialiser-2.7.1
 ----------------
 http://www.apache.org/dyn/closer.cgi/xml/xalan-j
 - xalan
+
+slf4j-api-1.7.2
+----------------
+http://www.slf4j.org/
+- jodd-core
 
 soap-2.3.1
 ----------

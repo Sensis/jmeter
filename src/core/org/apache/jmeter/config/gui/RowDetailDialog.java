@@ -24,13 +24,18 @@ import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 
+import javax.swing.AbstractAction;
+import javax.swing.Action;
+import javax.swing.ActionMap;
 import javax.swing.BorderFactory;
 import javax.swing.BoxLayout;
+import javax.swing.InputMap;
 import javax.swing.JButton;
 import javax.swing.JComponent;
 import javax.swing.JDialog;
 import javax.swing.JFrame;
 import javax.swing.JPanel;
+import javax.swing.JRootPane;
 
 import org.apache.jmeter.gui.action.KeyStrokes;
 import org.apache.jmeter.util.JMeterUtils;
@@ -64,13 +69,9 @@ public class RowDetailDialog extends JDialog implements ActionListener {
 
     private JLabeledTextArea valueTA;
 
-    private JButton updateButton;
-
     private JButton nextButton;
 
     private JButton previousButton;
-
-    private JButton closeButton;
 
     private ObjectTableModel tableModel;
 
@@ -80,24 +81,6 @@ public class RowDetailDialog extends JDialog implements ActionListener {
     public RowDetailDialog() {
         super();
     }
-	/**
-	 * Hide Window on ESC
-	 */
-	private transient ActionListener enterActionListener = new ActionListener() {
-		public void actionPerformed(ActionEvent actionEvent) {
-			doUpdate(actionEvent);
-			setVisible(false);
-		}	
-	};
-	
-	/**
-	 * Do search on Enter
-	 */
-	private transient ActionListener escapeActionListener = new ActionListener() {
-		public void actionPerformed(ActionEvent actionEvent) {
-			setVisible(false);
-		}	
-	};
 	
 	public RowDetailDialog(ObjectTableModel tableModel, int selectedRow) {
         super((JFrame) null, JMeterUtils.getResString("detail"), true); //$NON-NLS-1$
@@ -106,6 +89,43 @@ public class RowDetailDialog extends JDialog implements ActionListener {
         init();
     }
 
+	@Override
+    protected JRootPane createRootPane() {
+        JRootPane rootPane = new JRootPane();
+        // Hide Window on ESC
+        Action escapeAction = new AbstractAction("ESCAPE") { 
+            /**
+             * 
+             */
+            private static final long serialVersionUID = -8699034338969407625L;
+
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) { 
+                setVisible(false);
+            } 
+        };
+        // Do update on Enter
+        Action enterAction = new AbstractAction("ENTER") { 
+            /**
+             * 
+             */
+            private static final long serialVersionUID = -1529005452976176873L;
+
+            @Override
+            public void actionPerformed(ActionEvent actionEvent) {
+                doUpdate(actionEvent);
+                setVisible(false);
+            }
+        };
+        ActionMap actionMap = rootPane.getActionMap();
+        actionMap.put(escapeAction.getValue(Action.NAME), escapeAction);
+        actionMap.put(enterAction.getValue(Action.NAME), enterAction);
+        InputMap inputMap = rootPane.getInputMap(JComponent.WHEN_IN_FOCUSED_WINDOW);  
+        inputMap.put(KeyStrokes.ESC, escapeAction.getValue(Action.NAME));
+        inputMap.put(KeyStrokes.ENTER, enterAction.getValue(Action.NAME));
+        return rootPane;
+    }
+	
     private void init() {
         this.getContentPane().setLayout(new BorderLayout(10,10));
 
@@ -126,10 +146,10 @@ public class RowDetailDialog extends JDialog implements ActionListener {
 
         JPanel buttonsPanel = new JPanel(new FlowLayout(FlowLayout.CENTER));
         
-        updateButton = new JButton(JMeterUtils.getResString("update")); //$NON-NLS-1$
+        JButton updateButton = new JButton(JMeterUtils.getResString("update")); //$NON-NLS-1$
         updateButton.setActionCommand(UPDATE);
         updateButton.addActionListener(this);
-        closeButton = new JButton(JMeterUtils.getResString("close")); //$NON-NLS-1$
+        JButton closeButton = new JButton(JMeterUtils.getResString("close")); //$NON-NLS-1$
         closeButton.setActionCommand(CLOSE);
         closeButton.addActionListener(this);
         nextButton = new JButton(JMeterUtils.getResString("next")); //$NON-NLS-1$
@@ -147,8 +167,6 @@ public class RowDetailDialog extends JDialog implements ActionListener {
         buttonsPanel.add(closeButton);
         mainPanel.add(buttonsPanel, BorderLayout.SOUTH);
         this.getContentPane().add(mainPanel);
-        mainPanel.registerKeyboardAction(enterActionListener, KeyStrokes.ENTER, JComponent.WHEN_IN_FOCUSED_WINDOW);
-        mainPanel.registerKeyboardAction(escapeActionListener, KeyStrokes.ESC, JComponent.WHEN_IN_FOCUSED_WINDOW);
     	nameTF.requestFocusInWindow();
 
         this.pack();
@@ -159,6 +177,7 @@ public class RowDetailDialog extends JDialog implements ActionListener {
      * Do search
      * @param e {@link ActionEvent}
      */
+    @Override
     public void actionPerformed(ActionEvent e) {
         String action = e.getActionCommand();
     	if(action.equals(CLOSE)) {

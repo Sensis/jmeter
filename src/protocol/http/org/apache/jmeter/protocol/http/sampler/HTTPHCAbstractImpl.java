@@ -29,6 +29,7 @@ import java.util.StringTokenizer;
 import org.apache.jmeter.JMeter;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
+import org.apache.jorphan.util.JOrphanUtils;
 import org.apache.log.Logger;
 
 /**
@@ -81,7 +82,7 @@ public abstract class HTTPHCAbstractImpl extends HTTPAbstractImpl {
             StringTokenizer s = new StringTokenizer(NONPROXY_HOSTS,"|");// $NON-NLS-1$
             while (s.hasMoreTokens()){
                 String t = s.nextToken();
-                if (t.indexOf("*") ==0){// e.g. *.apache.org // $NON-NLS-1$
+                if (t.indexOf('*') ==0){// e.g. *.apache.org // $NON-NLS-1$
                     nonProxyHostSuffix.add(t.substring(1));
                 } else {
                     nonProxyHostFull.add(t);// e.g. www.apache.org
@@ -140,7 +141,7 @@ public abstract class HTTPHCAbstractImpl extends HTTPAbstractImpl {
      * @return {@code true} iff both ProxyPort and ProxyHost are defined.
      */
     protected boolean isDynamicProxy(String proxyHost, int proxyPort){
-        return (proxyHost.trim().length() > 0 && proxyPort > 0);        
+        return (!JOrphanUtils.isBlank(proxyHost) && proxyPort > 0);        
     }
 
     /**
@@ -158,6 +159,6 @@ public abstract class HTTPHCAbstractImpl extends HTTPAbstractImpl {
      * @return true if value is null or empty trimmed
      */
     protected static boolean isNullOrEmptyTrimmed(String value) {
-        return value == null || value.trim().length() == 0;
+        return JOrphanUtils.isBlank(value);
     }
 }

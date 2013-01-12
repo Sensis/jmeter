@@ -26,7 +26,6 @@ import java.awt.event.ActionListener;
 import java.io.IOException;
 
 import javax.swing.BorderFactory;
-import javax.swing.DefaultCellEditor;
 import javax.swing.JButton;
 import javax.swing.JFileChooser;
 import javax.swing.JPanel;
@@ -48,6 +47,7 @@ import org.apache.jmeter.protocol.http.control.AuthManager;
 import org.apache.jmeter.protocol.http.control.Authorization;
 import org.apache.jmeter.testelement.TestElement;
 import org.apache.jmeter.util.JMeterUtils;
+import org.apache.jorphan.gui.GuiUtils;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
 
@@ -92,6 +92,7 @@ public class AuthPanel extends AbstractConfigGui implements ActionListener {
         init();
     }
 
+    @Override
     public TestElement createTestElement() {
         AuthManager authMan = tableModel.manager;
         configureTestElement(authMan);
@@ -103,10 +104,9 @@ public class AuthPanel extends AbstractConfigGui implements ActionListener {
      *
      * @see org.apache.jmeter.gui.JMeterGUIComponent#modifyTestElement(TestElement)
      */
+    @Override
     public void modifyTestElement(TestElement el) {
-        if (authTable.isEditing()) {
-            authTable.getCellEditor().stopCellEditing();
-        }
+        GuiUtils.stopTableEditing(authTable);
         el.clear();
         el.addTestElement((TestElement) tableModel.manager.clone());
         configureTestElement(el);
@@ -135,6 +135,7 @@ public class AuthPanel extends AbstractConfigGui implements ActionListener {
         }
     }
 
+    @Override
     public String getLabelResource() {
         return "auth_manager_title"; //$NON-NLS-1$
     }
@@ -150,6 +151,7 @@ public class AuthPanel extends AbstractConfigGui implements ActionListener {
         add(createAuthTablePanel(), BorderLayout.CENTER);
     }
 
+    @Override
     public void actionPerformed(ActionEvent e) {
         String action = e.getActionCommand();
 
@@ -192,11 +194,7 @@ public class AuthPanel extends AbstractConfigGui implements ActionListener {
         } else if (action.equals(ADD_COMMAND)) {
             // If a table cell is being edited, we should accept the current
             // value and stop the editing before adding a new row.
-            if (authTable.isEditing()) {
-                TableCellEditor cellEditor = authTable.getCellEditor(authTable.getEditingRow(), authTable
-                        .getEditingColumn());
-                cellEditor.stopCellEditing();
-            }
+            GuiUtils.stopTableEditing(authTable);
 
             tableModel.addNewRow();
             tableModel.fireTableDataChanged();
@@ -249,7 +247,6 @@ public class AuthPanel extends AbstractConfigGui implements ActionListener {
         authTable.setPreferredScrollableViewportSize(new Dimension(100, 70));
 
         TableColumn passwordColumn = authTable.getColumnModel().getColumn(AuthManager.COL_PASSWORD);
-        passwordColumn.setCellEditor(new DefaultCellEditor(new JPasswordField()));
         passwordColumn.setCellRenderer(new PasswordCellRenderer());
 
         JPanel panel = new JPanel(new BorderLayout(0, 5));
@@ -321,6 +318,7 @@ public class AuthPanel extends AbstractConfigGui implements ActionListener {
         /**
          * Required by table model interface.
          */
+        @Override
         public int getRowCount() {
             return manager.getAuthObjects().size();
         }
@@ -328,6 +326,7 @@ public class AuthPanel extends AbstractConfigGui implements ActionListener {
         /**
          * Required by table model interface.
          */
+        @Override
         public int getColumnCount() {
             return manager.getColumnCount();
         }
@@ -343,6 +342,7 @@ public class AuthPanel extends AbstractConfigGui implements ActionListener {
         /**
          * Required by table model interface.
          */
+        @Override
         public Object getValueAt(int row, int column) {
             Authorization auth = manager.getAuthObjectAt(row);
 
@@ -399,6 +399,7 @@ public class AuthPanel extends AbstractConfigGui implements ActionListener {
             setBorder(myBorder);
         }
 
+        @Override
         public Component getTableCellRendererComponent(JTable table, Object value, boolean isSelected,
                 boolean hasFocus, int row, int column) {
             setText((String) value);

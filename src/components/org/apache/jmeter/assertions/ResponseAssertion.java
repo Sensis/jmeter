@@ -30,6 +30,7 @@ import org.apache.jmeter.testelement.property.JMeterProperty;
 import org.apache.jmeter.testelement.property.NullProperty;
 import org.apache.jmeter.testelement.property.PropertyIterator;
 import org.apache.jmeter.testelement.property.StringProperty;
+import org.apache.jmeter.util.Document;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.logging.LoggingManager;
 import org.apache.log.Logger;
@@ -48,42 +49,44 @@ public class ResponseAssertion extends AbstractScopedAssertion implements Serial
 
     private static final long serialVersionUID = 240L;
 
-    private final static String TEST_FIELD = "Assertion.test_field";  // $NON-NLS-1$
+    private static final String TEST_FIELD = "Assertion.test_field";  // $NON-NLS-1$
 
     // Values for TEST_FIELD
     // N.B. we cannot change the text value as it is in test plans
-    private final static String SAMPLE_URL = "Assertion.sample_label"; // $NON-NLS-1$
+    private static final String SAMPLE_URL = "Assertion.sample_label"; // $NON-NLS-1$
 
-    private final static String RESPONSE_DATA = "Assertion.response_data"; // $NON-NLS-1$
+    private static final String RESPONSE_DATA = "Assertion.response_data"; // $NON-NLS-1$
 
-    private final static String RESPONSE_CODE = "Assertion.response_code"; // $NON-NLS-1$
+    private static final String RESPONSE_DATA_AS_DOCUMENT = "Assertion.response_data_as_document"; // $NON-NLS-1$
 
-    private final static String RESPONSE_MESSAGE = "Assertion.response_message"; // $NON-NLS-1$
+    private static final String RESPONSE_CODE = "Assertion.response_code"; // $NON-NLS-1$
 
-    private final static String RESPONSE_HEADERS = "Assertion.response_headers"; // $NON-NLS-1$
+    private static final String RESPONSE_MESSAGE = "Assertion.response_message"; // $NON-NLS-1$
 
-    private final static String ASSUME_SUCCESS = "Assertion.assume_success"; // $NON-NLS-1$
+    private static final String RESPONSE_HEADERS = "Assertion.response_headers"; // $NON-NLS-1$
 
-    private final static String TEST_STRINGS = "Asserion.test_strings"; // $NON-NLS-1$
+    private static final String ASSUME_SUCCESS = "Assertion.assume_success"; // $NON-NLS-1$
 
-    private final static String TEST_TYPE = "Assertion.test_type"; // $NON-NLS-1$
+    private static final String TEST_STRINGS = "Asserion.test_strings"; // $NON-NLS-1$
+
+    private static final String TEST_TYPE = "Assertion.test_type"; // $NON-NLS-1$
 
     /*
      * Mask values for TEST_TYPE TODO: remove either MATCH or CONTAINS - they
      * are mutually exckusive
      */
-    private final static int MATCH = 1 << 0;
+    private static final int MATCH = 1 << 0;
 
-    private final static int CONTAINS = 1 << 1;
+    private static final int CONTAINS = 1 << 1;
 
-    private final static int NOT = 1 << 2;
+    private static final int NOT = 1 << 2;
 
-    private final static int EQUALS = 1 << 3;
+    private static final int EQUALS = 1 << 3;
 
-    private final static int SUBSTRING = 1 << 4;
+    private static final int SUBSTRING = 1 << 4;
 
     // Mask should contain all types (but not NOT)
-    private final static int TYPE_MASK = CONTAINS | EQUALS | MATCH | SUBSTRING;
+    private static final int TYPE_MASK = CONTAINS | EQUALS | MATCH | SUBSTRING;
 
     private static final int  EQUALS_SECTION_DIFF_LEN
             = JMeterUtils.getPropDefault("assertion.equals_section_diff_len", 100);
@@ -124,6 +127,10 @@ public class ResponseAssertion extends AbstractScopedAssertion implements Serial
         setTestField(RESPONSE_DATA);
     }
 
+    public void setTestFieldResponseDataAsDocument(){
+        setTestField(RESPONSE_DATA_AS_DOCUMENT);
+    }
+
     public void setTestFieldResponseMessage(){
         setTestField(RESPONSE_MESSAGE);
     }
@@ -142,6 +149,10 @@ public class ResponseAssertion extends AbstractScopedAssertion implements Serial
 
     public boolean isTestFieldResponseData(){
         return RESPONSE_DATA.equals(getTestField());
+    }
+
+    public boolean isTestFieldResponseDataAsDocument() {
+        return RESPONSE_DATA_AS_DOCUMENT.equals(getTestField());
     }
 
     public boolean isTestFieldResponseMessage(){
@@ -169,6 +180,7 @@ public class ResponseAssertion extends AbstractScopedAssertion implements Serial
         getTestStrings().clear();
     }
 
+    @Override
     public AssertionResult getResult(SampleResult response) {
         AssertionResult result;
 
@@ -295,6 +307,8 @@ public class ResponseAssertion extends AbstractScopedAssertion implements Serial
             toCheck = getThreadContext().getVariables().get(getVariableName());
         } else if (isTestFieldResponseData()) {
             toCheck = response.getResponseDataAsString(); // (bug25052)
+        } else if (isTestFieldResponseDataAsDocument()) {
+            toCheck = Document.getTextFromDocument(response.getResponseData()); 
         } else if (isTestFieldResponseCode()) {
             toCheck = response.getResponseCode();
         } else if (isTestFieldResponseMessage()) {
@@ -387,6 +401,8 @@ public class ResponseAssertion extends AbstractScopedAssertion implements Serial
             sb.append("message");
         } else if (isTestFieldResponseHeaders()) {
             sb.append("headers");
+        } else if (isTestFieldResponseDataAsDocument()) {
+            sb.append("document");
         } else // Assume it is the URL
         {
             sb.append("URL");

@@ -50,15 +50,15 @@ public class DistributionGraphVisualizer extends AbstractVisualizer implements I
         Clearable {
     private static final long serialVersionUID = 240L;
 
-    private SamplingStatCalculator model;
+    private final SamplingStatCalculator model;
 
     private JPanel graphPanel = null;
 
-    private DistributionGraph graph;
+    private final DistributionGraph graph;
 
     private JTextField noteField;
 
-    private int delay = 10;
+    private static final int DELAY = 10;
 
     private int counter = 0;
 
@@ -77,6 +77,7 @@ public class DistributionGraphVisualizer extends AbstractVisualizer implements I
      *
      * @return the Image value
      */
+    @Override
     public Image getImage() {
         Image result = graph.createImage(graph.getWidth(), graph.getHeight());
 
@@ -85,6 +86,7 @@ public class DistributionGraphVisualizer extends AbstractVisualizer implements I
         return result;
     }
 
+    @Override
     public synchronized void updateGui() {
         if (graph.getWidth() < 10) {
             graph.setPreferredSize(new Dimension(getWidth() - 40, getHeight() - 160));
@@ -93,9 +95,10 @@ public class DistributionGraphVisualizer extends AbstractVisualizer implements I
         graph.repaint();
     }
 
+    @Override
     public synchronized void updateGui(Sample s) {
         // We have received one more sample
-        if (delay == counter) {
+        if (DELAY == counter) {
             updateGui();
             counter = 0;
         } else {
@@ -103,8 +106,10 @@ public class DistributionGraphVisualizer extends AbstractVisualizer implements I
         }
     }
 
+    @Override
     public void add(final SampleResult res) {
         JMeterUtils.runSafe(new Runnable() {
+            @Override
             public void run() {
                 // made currentSample volatile
                 model.addSample(res);
@@ -113,10 +118,12 @@ public class DistributionGraphVisualizer extends AbstractVisualizer implements I
         });
     }
 
+    @Override
     public String getLabelResource() {
         return "distribution_graph_title"; // $NON-NLS-1$
     }
 
+    @Override
     public synchronized void clearData() {
         this.graph.clearData();
         model.clear();

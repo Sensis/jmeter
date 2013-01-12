@@ -66,7 +66,7 @@ public class JMeterTreeListener implements TreeSelectionListener, MouseListener,
 
     private JMeterTreeNode[] draggedNodes;
 
-    private JLabel dragIcon = new JLabel(JMeterUtils.getImage("leafnode.gif")); // $NON-NLS-1$
+    private final JLabel dragIcon = new JLabel(JMeterUtils.getImage("leafnode.gif")); // $NON-NLS-1$
 
     /**
      * Constructor for the JMeterTreeListener object.
@@ -158,15 +158,18 @@ public class JMeterTreeListener implements TreeSelectionListener, MouseListener,
         return currentPath;
     }
 
+    @Override
     public void valueChanged(TreeSelectionEvent e) {
         log.debug("value changed, updating currentPath");
         currentPath = e.getNewLeadSelectionPath();
         actionHandler.actionPerformed(new ActionEvent(this, 3333, "edit")); // $NON-NLS-1$
     }
 
+    @Override
     public void mouseClicked(MouseEvent ev) {
     }
 
+    @Override
     public void mouseReleased(MouseEvent e) {
         if (dragging && isValidDragAction(draggedNodes, getCurrentNode())) {
             dragging = false;
@@ -214,6 +217,7 @@ public class JMeterTreeListener implements TreeSelectionListener, MouseListener,
         return isValid;
     }
 
+    @Override
     public void mouseEntered(MouseEvent e) {
     }
 
@@ -238,6 +242,7 @@ public class JMeterTreeListener implements TreeSelectionListener, MouseListener,
         return false;
     }
 
+    @Override
     public void mousePressed(MouseEvent e) {
         // Get the Main Frame.
         MainFrame mainFrame = GuiPackage.getInstance().getMainFrame();
@@ -261,6 +266,7 @@ public class JMeterTreeListener implements TreeSelectionListener, MouseListener,
         }
     }
 
+    @Override
     public void mouseDragged(MouseEvent e) {
         if (!dragging) {
             dragging = true;
@@ -274,34 +280,40 @@ public class JMeterTreeListener implements TreeSelectionListener, MouseListener,
         changeSelectionIfDragging(e);
     }
 
+    @Override
     public void mouseMoved(MouseEvent e) {
     }
 
+    @Override
     public void mouseExited(MouseEvent ev) {
     }
 
+    @Override
     public void keyPressed(KeyEvent e) {
         if (KeyStrokes.matches(e,KeyStrokes.COPY)) {
             ActionRouter actionRouter = ActionRouter.getInstance();
             actionRouter.doActionNow(new ActionEvent(e.getSource(), e.getID(), ActionNames.COPY));
+            e.consume();
         } else if (KeyStrokes.matches(e,KeyStrokes.PASTE)) {
             ActionRouter actionRouter = ActionRouter.getInstance();
             actionRouter.doActionNow(new ActionEvent(e.getSource(), e.getID(), ActionNames.PASTE));
+            e.consume();
         } else if (KeyStrokes.matches(e,KeyStrokes.CUT)) {
             ActionRouter actionRouter = ActionRouter.getInstance();
             actionRouter.doActionNow(new ActionEvent(e.getSource(), e.getID(), ActionNames.CUT));
-// If the following lines are included, then pressing the DUPLICATE key results in calling the action twice.
-// Without the code below, it still works.
-// Odd, the other keypresses do need to be handled above or they do not work at all...
-//        } else if (KeyStrokes.matches(e,KeyStrokes.DUPLICATE)) {
-//            ActionRouter actionRouter = ActionRouter.getInstance();
-//            actionRouter.doActionNow(new ActionEvent(e.getSource(), e.getID(), ActionNames.DUPLICATE));
+            e.consume();
+        } else if (KeyStrokes.matches(e,KeyStrokes.DUPLICATE)) {
+            ActionRouter actionRouter = ActionRouter.getInstance();
+            actionRouter.doActionNow(new ActionEvent(e.getSource(), e.getID(), ActionNames.DUPLICATE));
+            e.consume();
         }
     }
 
+    @Override
     public void keyReleased(KeyEvent e) {
     }
 
+    @Override
     public void keyTyped(KeyEvent e) {
     }
 

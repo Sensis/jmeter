@@ -63,7 +63,10 @@ public class AxisGraph extends JPanel {
     private static final int ELLIPSIS_LEN = ELLIPSIS.length();
 
     protected double[][] data = null;
-    protected String title, xAxisTitle, yAxisTitle, yAxisLabel;
+    protected String title;
+    protected String xAxisTitle;
+    protected String yAxisTitle;
+    protected String yAxisLabel;
     protected int maxLength;
     protected String[] xAxisLabels;
     protected int width, height;
@@ -112,6 +115,10 @@ public class AxisGraph extends JPanel {
         super(layout, isDoubleBuffered);
     }
 
+    /**
+     * Expects null array when no data  not empty array
+     * @param data
+     */
     public void setData(double[][] data) {
         this.data = data;
     }
@@ -132,6 +139,10 @@ public class AxisGraph extends JPanel {
         this.yAxisTitle = title;
     }
 
+    /**
+     * Expects null array when no labels not empty array
+     * @param labels
+     */
     public void setXAxisLabels(String[] labels) {
         this.xAxisLabels = labels;
     }
@@ -295,10 +306,10 @@ public class AxisGraph extends JPanel {
     @Override
     public void paintComponent(Graphics graphics) {
         if (data != null && this.title != null && this.xAxisLabels != null &&
-                this.xAxisTitle != null && this.yAxisLabel != null &&
+                this.yAxisLabel != null &&
                 this.yAxisTitle != null) {
-            drawSample(this.title, this.maxLength, this.xAxisLabels,
-                    this.xAxisTitle, this.yAxisTitle, this.legendLabels,
+            drawSample(this.title, this.maxLength, this.xAxisLabels, 
+                    this.yAxisTitle, this.legendLabels,
                     this.data, this.width, this.height, this.color,
                     this.legendFont, graphics);
         }
@@ -319,14 +330,15 @@ public class AxisGraph extends JPanel {
 
     private String squeeze (String input, int _maxLength){
         if (input.length()>_maxLength){
-            String output=input.substring(0,_maxLength-ELLIPSIS_LEN)+ELLIPSIS;
-            return output;
+            return input.substring(0,_maxLength-ELLIPSIS_LEN)+ELLIPSIS;
         }
         return input;
     }
 
-    private void drawSample(String _title, int _maxLength, String[] _xAxisLabels, String _xAxisTitle,
-            String _yAxisTitle, String[] _legendLabels, double[][] _data, int _width, int _height, Color[] _color, Font font, Graphics g) {
+    private void drawSample(String _title, int _maxLength, String[] _xAxisLabels,
+            String _yAxisTitle, String[] _legendLabels, double[][] _data,
+            int _width, int _height, Color[] _color,
+            Font legendFont, Graphics g) {
         double max = maxYAxisScale > 0 ? maxYAxisScale : findMax(_data); // define max scale y axis
         try {
             /** These controls are already done in StatGraphVisualizer
@@ -363,9 +375,7 @@ public class AxisGraph extends JPanel {
             clusteredBarChartProperties.addPostRenderEventListener(valueLabelRenderer);
 
             Paint[] paints = new Paint[_color.length];
-            for (int i = 0; i < _color.length; i++) {
-                paints[i] =  _color[i];
-            }
+            System.arraycopy(_color, 0, paints, 0, paints.length);
             
             AxisChartDataSet axisChartDataSet =
                 new AxisChartDataSet(
@@ -404,6 +414,10 @@ public class AxisGraph extends JPanel {
             LegendProperties legendProperties= new LegendProperties();
             legendProperties.setBorderStroke(null);
             legendProperties.setPlacement(legendPlacement);
+            legendProperties.setIconBorderPaint(Color.WHITE);
+            if (legendPlacement == LegendAreaProperties.RIGHT || legendPlacement == LegendAreaProperties.LEFT) {
+                legendProperties.setNumColumns(1);
+            }
             if (legendFont != null) {
                 legendProperties.setFont(legendFont); //new Font("SansSerif", Font.PLAIN, 10)
             }

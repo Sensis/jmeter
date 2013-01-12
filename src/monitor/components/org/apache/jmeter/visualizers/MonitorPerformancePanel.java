@@ -16,12 +16,13 @@
  */
 package org.apache.jmeter.visualizers;
 
-import java.util.HashMap;
 import java.awt.BorderLayout;
 import java.awt.Color;
 import java.awt.Dimension;
-import java.awt.Font;
 import java.awt.FlowLayout;
+import java.awt.Font;
+import java.util.HashMap;
+import java.util.Map;
 
 import javax.swing.ImageIcon;
 import javax.swing.JLabel;
@@ -29,11 +30,11 @@ import javax.swing.JPanel;
 import javax.swing.JScrollPane;
 import javax.swing.JSplitPane;
 import javax.swing.JTree;
+import javax.swing.event.TreeSelectionEvent;
+import javax.swing.event.TreeSelectionListener;
 import javax.swing.tree.DefaultMutableTreeNode;
 import javax.swing.tree.DefaultTreeModel;
 import javax.swing.tree.TreeSelectionModel;
-import javax.swing.event.TreeSelectionListener;
-import javax.swing.event.TreeSelectionEvent;
 
 import org.apache.jmeter.samplers.Clearable;
 import org.apache.jmeter.samplers.SampleResult;
@@ -55,7 +56,7 @@ public class MonitorPerformancePanel extends JSplitPane implements TreeSelection
 
     private DefaultMutableTreeNode ROOTNODE;
 
-    private final HashMap<String, DefaultMutableTreeNode> SERVERMAP;
+    private final Map<String, DefaultMutableTreeNode> SERVERMAP;
 
     private final MonitorAccumModel MODEL;
 
@@ -252,6 +253,7 @@ public class MonitorPerformancePanel extends JSplitPane implements TreeSelection
      * MonitorAccumModel will call this method to notify the component data has
      * changed.
      */
+    @Override
     public synchronized void addSample(MonitorModel model) {
         if (!SERVERMAP.containsKey(model.getURL())) {
             DefaultMutableTreeNode newnode = new DefaultMutableTreeNode(model);
@@ -274,13 +276,14 @@ public class MonitorPerformancePanel extends JSplitPane implements TreeSelection
      * node. From the node, we get the UserObject used to create the treenode in
      * the constructor.
      */
+    @Override
     public void valueChanged(TreeSelectionEvent e) {
         // we check to see if the lastSelectedPath is null
         // after we clear, it would return null
         if (SERVERTREE.getLastSelectedPathComponent() != null) {
             DefaultMutableTreeNode node = (DefaultMutableTreeNode) SERVERTREE.getLastSelectedPathComponent();
             Object usrobj = node.getUserObject();
-            if (usrobj != null && usrobj instanceof MonitorModel) {
+            if (usrobj instanceof MonitorModel) {
                 MonitorModel mo = (MonitorModel) usrobj;
                 GRAPH.updateGui(mo);
                 this.updateUI();
@@ -293,6 +296,7 @@ public class MonitorPerformancePanel extends JSplitPane implements TreeSelection
      * clear will remove all child nodes from the ROOTNODE, clear the HashMap,
      * update the graph and jpanel for the server tree.
      */
+    @Override
     public void clearData() {
         this.SERVERMAP.clear();
         ROOTNODE.removeAllChildren();

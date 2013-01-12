@@ -23,7 +23,8 @@ import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 
-import javax.script.ScriptEngineManager;
+import javax.script.Bindings;
+import javax.script.ScriptEngine;
 import javax.script.ScriptException;
 
 import org.apache.jmeter.config.ConfigTestElement;
@@ -41,14 +42,19 @@ public class JSR223Sampler extends JSR223TestElement implements Cloneable, Sampl
     private static final Set<String> APPLIABLE_CONFIG_CLASSES = new HashSet<String>(
             Arrays.asList(new String[]{
                     "org.apache.jmeter.config.gui.SimpleConfigGui"}));
-    
+
     private static final long serialVersionUID = 234L;
 
     private static final Logger log = LoggingManager.getLoggerForClass();
 
+    @Override
     public SampleResult sample(Entry entry) {
         SampleResult result = new SampleResult();
         result.setSampleLabel(getName());
+        result.setSuccessful(true);
+        result.setResponseCodeOK();
+        result.setResponseMessageOK();
+
         final String filename = getFilename();
         if (filename.length() > 0){
             result.setSamplerData("File: "+filename);
@@ -58,28 +64,20 @@ public class JSR223Sampler extends JSR223TestElement implements Cloneable, Sampl
         result.setDataType(SampleResult.TEXT);
         result.sampleStart();
         try {
-            ScriptEngineManager mgr = getManager();
-            if (mgr == null) {
-                result.setSuccessful(false);
-                result.setResponseCode("500"); // $NON-NLS-1$
-                result.setResponseMessage("Could not instantiate ScriptManager");
-                return result;
-            }
-            mgr.put("SampleResult",result);
-            Object ret = processFileOrScript(mgr);
-            result.setSuccessful(true);
-            result.setResponseCodeOK();
-            result.setResponseMessageOK();
-            if (ret != null){
+            ScriptEngine scriptEngine = getScriptEngine();
+            Bindings bindings = scriptEngine.createBindings();
+            bindings.put("SampleResult",result);
+            Object ret = processFileOrScript(scriptEngine, bindings);
+            if (ret != null && (result.getResponseData() == null || result.getResponseData()==SampleResult.EMPTY_BA)){
                 result.setResponseData(ret.toString(), null);
             }
         } catch (IOException e) {
-            log.warn("Problem in JSR223 script "+e);
+            log.error("Problem in JSR223 script "+e, e);
             result.setSuccessful(false);
             result.setResponseCode("500"); // $NON-NLS-1$
             result.setResponseMessage(e.toString());
         } catch (ScriptException e) {
-            log.warn("Problem in JSR223 script "+e);
+            log.error("Problem in JSR223 script "+e, e);
             result.setSuccessful(false);
             result.setResponseCode("500"); // $NON-NLS-1$
             result.setResponseMessage(e.toString());
@@ -91,6 +89,7 @@ public class JSR223Sampler extends JSR223TestElement implements Cloneable, Sampl
     /**
      * @see org.apache.jmeter.samplers.AbstractSampler#applies(org.apache.jmeter.config.ConfigTestElement)
      */
+    @Override
     public boolean applies(ConfigTestElement configElement) {
         String guiClass = configElement.getProperty(TestElement.GUI_CLASS).getStringValue();
         return APPLIABLE_CONFIG_CLASSES.contains(guiClass);

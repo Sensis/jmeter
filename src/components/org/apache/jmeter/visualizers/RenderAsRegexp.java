@@ -44,6 +44,7 @@ import org.apache.jmeter.samplers.SampleResult;
 import org.apache.jmeter.util.JMeterUtils;
 import org.apache.jorphan.gui.GuiUtils;
 import org.apache.jorphan.gui.JLabeledTextField;
+import org.apache.oro.text.MalformedCachePatternException;
 import org.apache.oro.text.PatternCacheLRU;
 import org.apache.oro.text.regex.MatchResult;
 import org.apache.oro.text.regex.Pattern;
@@ -71,6 +72,7 @@ public class RenderAsRegexp implements ResultRenderer, ActionListener {
     private SampleResult sampleResult = null;
 
     /** {@inheritDoc} */
+    @Override
     public void clearData() {
         this.regexpDataField.setText(""); // $NON-NLS-1$
         // don't set empty to keep regexp
@@ -79,6 +81,7 @@ public class RenderAsRegexp implements ResultRenderer, ActionListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void init() {
         // Create the panels for the regexp tab
         regexpPane = createRegexpPanel();
@@ -90,6 +93,7 @@ public class RenderAsRegexp implements ResultRenderer, ActionListener {
      *
      * @param e the ActionEvent being processed
      */
+    @Override
     public void actionPerformed(ActionEvent e) {
         String command = e.getActionCommand();
         if ((sampleResult != null) && (REGEXP_TESTER_COMMAND.equals(command))) {
@@ -116,7 +120,12 @@ public class RenderAsRegexp implements ResultRenderer, ActionListener {
         PatternMatcherInput input = new PatternMatcherInput(textToParse);
 
         PatternCacheLRU pcLRU = new PatternCacheLRU();
-        Pattern pattern = pcLRU.getPattern(regexpField.getText(), Perl5Compiler.READ_ONLY_MASK);
+        Pattern pattern;
+        try {
+            pattern = pcLRU.getPattern(regexpField.getText(), Perl5Compiler.READ_ONLY_MASK);
+        } catch (MalformedCachePatternException e) {
+            return e.toString();
+        }
         List<MatchResult> matches = new LinkedList<MatchResult>();
         while (matcher.contains(input, pattern)) {
             matches.add(matcher.getMatch());
@@ -136,7 +145,8 @@ public class RenderAsRegexp implements ResultRenderer, ActionListener {
 
     }
     /** {@inheritDoc} */
-   public void renderResult(SampleResult sampleResult) {
+   @Override
+public void renderResult(SampleResult sampleResult) {
        clearData();
         String response = ViewResultsFullVisualizer.getResponseAsString(sampleResult);
         regexpDataField.setText(response);
@@ -144,6 +154,7 @@ public class RenderAsRegexp implements ResultRenderer, ActionListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void setupTabPane() {
          // Add regexp tester pane
         if (rightSide.indexOfTab(JMeterUtils.getResString("regexp_tester_title")) < 0) { // $NON-NLS-1$
@@ -204,11 +215,13 @@ public class RenderAsRegexp implements ResultRenderer, ActionListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public synchronized void setRightSide(JTabbedPane side) {
         rightSide = side;
     }
 
     /** {@inheritDoc} */
+    @Override
     public synchronized void setSamplerResult(Object userObject) {
         if (userObject instanceof SampleResult) {
             sampleResult = (SampleResult) userObject;
@@ -216,6 +229,7 @@ public class RenderAsRegexp implements ResultRenderer, ActionListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void setLastSelectedTab(int index) {
         // nothing to do
     }
@@ -227,12 +241,14 @@ public class RenderAsRegexp implements ResultRenderer, ActionListener {
     }
 
     /** {@inheritDoc} */
+    @Override
     public void renderImage(SampleResult sampleResult) {
         clearData();
         regexpDataField.setText(JMeterUtils.getResString("regexp_render_no_text")); // $NON-NLS-1$
     }
 
     /** {@inheritDoc} */
+    @Override
     public void setBackgroundColor(Color backGround) {
     }
 

@@ -38,7 +38,6 @@ import javax.naming.InitialContext;
 import javax.naming.NamingException;
 
 import org.apache.jmeter.config.Arguments;
-import org.apache.jmeter.engine.event.LoopIterationEvent;
 import org.apache.jmeter.protocol.jms.Utils;
 import org.apache.jmeter.samplers.AbstractSampler;
 import org.apache.jmeter.samplers.Entry;
@@ -84,9 +83,9 @@ public class JMSSampler extends AbstractSampler implements ThreadListener {
 
     private static final String XML_DATA = "HTTPSamper.xml_data"; // $NON-NLS-1$
 
-    private final static String SEND_QUEUE = "JMSSampler.SendQueue"; // $NON-NLS-1$
+    private static final String SEND_QUEUE = "JMSSampler.SendQueue"; // $NON-NLS-1$
 
-    private final static String QUEUE_CONNECTION_FACTORY_JNDI = "JMSSampler.queueconnectionfactory"; // $NON-NLS-1$
+    private static final String QUEUE_CONNECTION_FACTORY_JNDI = "JMSSampler.queueconnectionfactory"; // $NON-NLS-1$
 
     private static final String IS_NON_PERSISTENT = "JMSSampler.isNonPersistent"; // $NON-NLS-1$
 
@@ -128,6 +127,7 @@ public class JMSSampler extends AbstractSampler implements ThreadListener {
     /**
      * {@inheritDoc}
      */
+    @Override
     public SampleResult sample(Entry entry) {
         SampleResult res = new SampleResult();
         res.setSampleLabel(getName());
@@ -292,10 +292,7 @@ public class JMSSampler extends AbstractSampler implements ThreadListener {
         return getQueueConnectionFactory() + ", queue: " + getSendQueue();
     }
 
-    public void testIterationStart(LoopIterationEvent event) {
-        // LOGGER.debug("testIterationStart");
-    }
-
+    @Override
     public void threadStarted() {
         logThreadStart();
 
@@ -306,7 +303,7 @@ public class JMSSampler extends AbstractSampler implements ThreadListener {
             Object obj = context.lookup(getQueueConnectionFactory());
             if (!(obj instanceof QueueConnectionFactory)) {
                 String msg = "QueueConnectionFactory expected, but got "
-                    + obj.getClass().getName();
+                    + (obj != null ? obj.getClass().getName() : "null");
                 LOGGER.fatalError(msg);
                 throw new IllegalStateException(msg);
             }
@@ -450,6 +447,7 @@ public class JMSSampler extends AbstractSampler implements ThreadListener {
     /**
      * {@inheritDoc}
      */
+    @Override
     public void threadFinished() {
         LOGGER.debug("Thread ended " + new Date());
 

@@ -22,7 +22,7 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-import org.apache.commons.lang.StringUtils;
+import org.apache.commons.lang3.StringUtils;
 
 /**
  * Regexp search implementation
@@ -52,7 +52,8 @@ public class RegexpSearcher implements Searcher {
 	/**
 	 * {@inheritDoc}
 	 */
-	public boolean search(List<String> textTokens) {
+	@Override
+    public boolean search(List<String> textTokens) {
 		for (String searchableToken : textTokens) {
 			if(!StringUtils.isEmpty(searchableToken)) {
 				Matcher matcher = null; 

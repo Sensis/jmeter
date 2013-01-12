@@ -24,6 +24,8 @@ import org.apache.jmeter.config.Arguments;
 import org.apache.jmeter.protocol.java.sampler.AbstractJavaSamplerClient;
 import org.apache.jmeter.protocol.java.sampler.JavaSamplerContext;
 import org.apache.jmeter.samplers.SampleResult;
+import org.apache.jorphan.logging.LoggingManager;
+import org.apache.log.Logger;
 
 /**
  * The <code>SleepTest</code> class is a simple example class for a JMeter
@@ -44,6 +46,9 @@ import org.apache.jmeter.samplers.SampleResult;
  * @version $Revision$
  */
 public class SleepTest extends AbstractJavaSamplerClient implements Serializable {
+
+    private static final Logger LOG = LoggingManager.getLoggerForClass();
+
     private static final long serialVersionUID = 240L;
 
     /**
@@ -74,7 +79,7 @@ public class SleepTest extends AbstractJavaSamplerClient implements Serializable
      * of the client class.
      */
     public SleepTest() {
-        getLogger().debug(whoAmI() + "\tConstruct");
+        LOG.debug(whoAmI() + "\tConstruct");
     }
 
     /**
@@ -91,9 +96,10 @@ public class SleepTest extends AbstractJavaSamplerClient implements Serializable
      */
     @Override
     public void setupTest(JavaSamplerContext context) {
-        getLogger().debug(whoAmI() + "\tsetupTest()");
-        listParameters(context);
-
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(whoAmI() + "\tsetupTest()");
+            listParameters(context);
+        }
         sleepTime = context.getLongParameter("SleepTime", DEFAULT_SLEEP_TIME);
         sleepMask = context.getLongParameter("SleepMask", DEFAULT_SLEEP_MASK);
     }
@@ -119,6 +125,7 @@ public class SleepTest extends AbstractJavaSamplerClient implements Serializable
      *
      * @return a SampleResult giving the results of this sample.
      */
+    @Override
     public SampleResult runTest(JavaSamplerContext context) {
         SampleResult results = new SampleResult();
 
@@ -142,35 +149,21 @@ public class SleepTest extends AbstractJavaSamplerClient implements Serializable
 
             results.setSuccessful(true);
         } catch (InterruptedException e) {
-            getLogger().warn("SleepTest: interrupted.");
+            LOG.warn("SleepTest: interrupted.");
             results.setSuccessful(true);
         } catch (Exception e) {
-            getLogger().error("SleepTest: error during sample", e);
+            LOG.error("SleepTest: error during sample", e);
             results.setSuccessful(false);
         } finally {
             results.sampleEnd();
         }
 
-        if (getLogger().isDebugEnabled()) {
-            getLogger().debug(whoAmI() + "\trunTest()" + "\tTime:\t" + results.getTime());
+        if (LOG.isDebugEnabled()) {
+            LOG.debug(whoAmI() + "\trunTest()" + "\tTime:\t" + results.getTime());
             listParameters(context);
         }
 
         return results;
-    }
-
-    /**
-     * Do any clean-up required by this test. In this case no clean-up is
-     * necessary, but some messages are logged for debugging purposes.
-     *
-     * @param context
-     *            the context to run with. This provides access to
-     *            initialization parameters.
-     */
-    @Override
-    public void teardownTest(JavaSamplerContext context) {
-        getLogger().debug(whoAmI() + "\tteardownTest()");
-        listParameters(context);
     }
 
     /**
@@ -200,12 +193,10 @@ public class SleepTest extends AbstractJavaSamplerClient implements Serializable
      *            the context which contains the initialization parameters.
      */
     private void listParameters(JavaSamplerContext context) {
-        if (getLogger().isDebugEnabled()) {
-            Iterator<String> argsIt = context.getParameterNamesIterator();
-            while (argsIt.hasNext()) {
-                String name = argsIt.next();
-                getLogger().debug(name + "=" + context.getParameter(name));
-            }
+        Iterator<String> argsIt = context.getParameterNamesIterator();
+        while (argsIt.hasNext()) {
+            String name = argsIt.next();
+            LOG.debug(name + "=" + context.getParameter(name));
         }
     }
 
