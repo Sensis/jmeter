@@ -5,15 +5,12 @@ import org.apache.log.Logger;
 import org.openqa.selenium.Proxy;
 import org.openqa.selenium.WebDriver;
 import org.openqa.selenium.android.AndroidDriver;
-import org.openqa.selenium.chrome.ChromeDriver;
 import org.openqa.selenium.chrome.ChromeDriverService;
-import org.openqa.selenium.chrome.ChromeOptions;
 import org.openqa.selenium.firefox.FirefoxDriver;
 import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
 
-import java.io.File;
 import java.io.IOException;
 
 /**
@@ -34,7 +31,7 @@ public class BrowserFactory {
     private static final ThreadLocal<BrowserType> BROWSER_TYPES = new ThreadLocal<BrowserType>() {
         @Override
         public BrowserType initialValue() {
-            return BrowserType.CHROME;
+            return BrowserType.FIREFOX;
         }
     };
 
@@ -80,7 +77,7 @@ public class BrowserFactory {
 
     private static void initialiseService() {
         if(SERVICES.get() == null) {
-            SERVICES.set(new ChromeDriverService.Builder().usingChromeDriverExecutable(new File(System.getProperty("webdriver.chrome.driver"))).usingAnyFreePort().build());
+            SERVICES.set(new ChromeDriverService.Builder().usingAnyFreePort().build());
             try {
                 SERVICES.get().start();
             } catch (IOException e) {
