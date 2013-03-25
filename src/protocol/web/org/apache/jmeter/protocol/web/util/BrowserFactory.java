@@ -11,6 +11,7 @@ import org.openqa.selenium.remote.CapabilityType;
 import org.openqa.selenium.remote.DesiredCapabilities;
 import org.openqa.selenium.remote.RemoteWebDriver;
 
+import java.io.File;
 import java.io.IOException;
 
 /**
@@ -77,7 +78,7 @@ public class BrowserFactory {
 
     private static void initialiseService() {
         if(SERVICES.get() == null) {
-            SERVICES.set(new ChromeDriverService.Builder().usingAnyFreePort().build());
+            SERVICES.set(new ChromeDriverService.Builder().usingDriverExecutable(new File(System.getProperty("webdriver.chrome.driver"))).usingAnyFreePort().build());
             try {
                 SERVICES.get().start();
             } catch (IOException e) {
