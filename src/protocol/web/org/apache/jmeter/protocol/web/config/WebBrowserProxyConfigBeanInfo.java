@@ -11,6 +11,7 @@ public class WebBrowserProxyConfigBeanInfo extends BeanInfoSupport {
     static final String HTTP_PROXY = "httpProxy";
     static final String HTTPS_PROXY = "httpsProxy";
     static final String FTP_PROXY = "ftpProxy";
+    static final String NO_PROXY = "noProxy";
     static final String PROXY_AUTO_DETECT = "be automatically configured";
     static final String PROXY_DIRECT = "not be used";
     static final String PROXY_PAC = "be configured using a PAC URL (below)";
@@ -22,7 +23,7 @@ public class WebBrowserProxyConfigBeanInfo extends BeanInfoSupport {
         PropertyDescriptor p = null;
 
         // configuration per test run (ie. configured only once)
-        createPropertyGroup(RUN_SETTINGS, new String[] {PROXY_SETTINGS, PAC_URL, HTTP_PROXY, HTTPS_PROXY, FTP_PROXY});
+        createPropertyGroup(RUN_SETTINGS, new String[] {PROXY_SETTINGS, PAC_URL, HTTP_PROXY, HTTPS_PROXY, FTP_PROXY, NO_PROXY});
 
         // proxy configuration
         p = property(PROXY_SETTINGS);
@@ -46,6 +47,10 @@ public class WebBrowserProxyConfigBeanInfo extends BeanInfoSupport {
         p = property(FTP_PROXY);
         p.setValue(NOT_UNDEFINED, Boolean.TRUE);
         p.setValue(DEFAULT, "");
+        p.setValue(NOT_EXPRESSION, Boolean.TRUE);
+        p = property(NO_PROXY);
+        p.setValue(NOT_UNDEFINED, Boolean.TRUE);
+        p.setValue(DEFAULT, "localhost, 127.0.0.1");
         p.setValue(NOT_EXPRESSION, Boolean.TRUE);
     }
 }

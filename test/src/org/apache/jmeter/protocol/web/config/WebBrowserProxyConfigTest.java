@@ -30,12 +30,14 @@ public class WebBrowserProxyConfigTest {
         final String httpProxy = "http proxy value";
         final String httpsProxy = "https proxy value";
         final String ftpProxy = "ftp proxy value";
+        final String noProxy = "host,otherhost";
         
         proxyConfig.setProxySettings(proxySetting);
         proxyConfig.setPacUrl(pacUrl);
         proxyConfig.setHttpProxy(httpProxy);
         proxyConfig.setHttpsProxy(httpsProxy);
         proxyConfig.setFtpProxy(ftpProxy);
+        proxyConfig.setNoProxy(noProxy);
 
         outputStream.writeObject(proxyConfig);
         outputStream.flush();
@@ -48,6 +50,7 @@ public class WebBrowserProxyConfigTest {
         assertThat(deserialisedProxyConfig.getHttpProxy(), is(httpProxy));
         assertThat(deserialisedProxyConfig.getHttpsProxy(), is(httpsProxy));
         assertThat(deserialisedProxyConfig.getFtpProxy(), is(ftpProxy));
+        assertThat(deserialisedProxyConfig.getNoProxy(), is(noProxy));
     }
 	
 	@Test
@@ -64,6 +67,7 @@ public class WebBrowserProxyConfigTest {
 		proxyConfig.setHttpProxy("host:port");
 		proxyConfig.setHttpsProxy("host:port");
 		proxyConfig.setFtpProxy("host:port");
+        proxyConfig.setNoProxy("somehost,otherhost");
 		proxyConfig.testStarted();
 		assertThat(browserFactory.getProxy().getProxyType(), is(ProxyType.MANUAL));
 	}

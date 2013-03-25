@@ -16,6 +16,8 @@ public class WebBrowserProxyConfig extends ConfigTestElement implements TestBean
 
 	private static final String HTTP_PROXY = "WebBrowserProxyConfig.httpProxy";
 
+	private static final String NO_PROXY = "WebBrowserProxyConfig.noProxy";
+
 	private static final String PAC_URL = "WebBrowserProxyConfig.pacUrl";
 
 	private static final String PROXY_SETTINGS = "WebBrowserProxyConfig.proxySettings";
@@ -62,13 +64,21 @@ public class WebBrowserProxyConfig extends ConfigTestElement implements TestBean
         setProperty(FTP_PROXY, ftpProxy);
     }
 
-	public void testStarted() {
+    public void setNoProxy(String noProxy) {
+        setProperty(NO_PROXY, noProxy);
+    }
+
+    public String getNoProxy() {
+        return getPropertyAsString(NO_PROXY, "localhost, 127.0.0.1");
+    }
+
+    public void testStarted() {
         Proxy proxy = null;
         if(WebBrowserProxyConfigBeanInfo.PROXY_PAC.equals(getProxySettings())) {
             proxy = ProxyFactory.getInstance().getUrlProxy(getPacUrl());
         }
         else if(WebBrowserProxyConfigBeanInfo.PROXY_MANUAL.equals(getProxySettings())) {
-            proxy = ProxyFactory.getInstance().getManualProxy(getHttpProxy(), getHttpsProxy(), getFtpProxy());
+            proxy = ProxyFactory.getInstance().getManualProxy(getHttpProxy(), getHttpsProxy(), getFtpProxy(), getNoProxy());
         }
         else if(WebBrowserProxyConfigBeanInfo.PROXY_DIRECT.equals(getProxySettings())) {
             proxy = ProxyFactory.getInstance().getDirectProxy();
@@ -79,7 +89,7 @@ public class WebBrowserProxyConfig extends ConfigTestElement implements TestBean
         BrowserFactory.getInstance().setProxy(proxy);
 	}
 
-	@Override
+    @Override
 	public void testStarted(String host) {
 		testStarted();
 	}

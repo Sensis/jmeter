@@ -18,18 +18,21 @@ public class ProxyFactory {
     /**
      * This returns a {@see Proxy} with HTTP, HTTPS and FTP hosts and ports configured as specified.
      *
+     *
      * @param httpProxy is the http proxy host and port, eg. proxy-host.com:3128
      * @param httpsProxy is the https proxy host and port, eg. proxy-host.com:3128
      * @param ftpProxy is the ftp proxy host and port, eg. proxy-host.com:3128
      *
+     * @param noProxy
      * @returns a proxy object with the hosts manually specified.
      */
-    public Proxy getManualProxy(String httpProxy, String httpsProxy, String ftpProxy) {
+    public Proxy getManualProxy(String httpProxy, String httpsProxy, String ftpProxy, String noProxy) {
         final Proxy proxy = new Proxy();
         proxy.setProxyType(Proxy.ProxyType.MANUAL);
         proxy.setHttpProxy(httpProxy);
         proxy.setSslProxy(httpsProxy);
         proxy.setFtpProxy(ftpProxy);
+        proxy.setNoProxy(noProxy);
         return proxy;
     }
 

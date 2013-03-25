@@ -50,11 +50,13 @@ public class ProxyFactoryTest {
         String http = "http.com:1234";
         String https = "https.com:1234";
         String ftp = "ftp:1234";
-        Proxy proxy = factory.getManualProxy(http, https, ftp);
+        String noProxy = "none";
+        Proxy proxy = factory.getManualProxy(http, https, ftp, noProxy);
         assertThat(proxy.getProxyType(), is(Proxy.ProxyType.MANUAL));
         assertThat(proxy.getHttpProxy(), is(http));
         assertThat(proxy.getSslProxy(), is(https));
         assertThat(proxy.getFtpProxy(), is(ftp));
+        assertThat(proxy.getNoProxy(), is(noProxy));
 
         assertThat(proxy.isAutodetect(), is(false));
     }
